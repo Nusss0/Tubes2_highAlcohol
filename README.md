@@ -37,7 +37,8 @@ go version
 # Running a Backend
 
 1. Initialize the module (only once), to maintain consistency follow this command :
-   Do this inside `src` :
+
+Note : Do this inside `src` :
 
 ```bash
 go mod init stima
