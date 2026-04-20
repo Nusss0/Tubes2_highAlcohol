@@ -65,3 +65,52 @@ Note : Atur" aja
 go build -o bin/server ./cmd/
 ./bin/server
 ```
+
+# Run With Docker
+
+Use Docker Compose from the repository root so backend and frontend run together.
+
+1. Build both images
+
+```bash
+docker compose build
+```
+
+Note: frontend browser requests are configured to call backend on `http://localhost:8080`.
+
+2. Start both containers
+
+```bash
+docker compose up
+```
+
+3. Open the apps
+
+- Frontend: http://localhost:3000
+- Backend health check: http://localhost:8080/health
+
+4. Stop containers
+
+```bash
+docker compose down
+```
+
+Useful options:
+
+- Rebuild and start in one command:
+
+```bash
+docker compose up --build
+```
+
+- Run in background:
+
+```bash
+docker compose up -d
+```
+
+- View logs:
+
+```bash
+docker compose logs -f
+```
