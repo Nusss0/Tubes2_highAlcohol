@@ -1,0 +1,22 @@
+services:
+  backend:
+    build:
+      context: ./src
+      dockerfile: backend/Dockerfile
+    container_name: tubes2-backend
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./src/frontend
+      dockerfile: Dockerfile
+      args:
+        NEXT_PUBLIC_BACKEND_URL: http://localhost:8080
+    container_name: tubes2-frontend
+    depends_on:
+      - backend
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_BACKEND_URL: http://localhost:8080

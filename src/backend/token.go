@@ -13,9 +13,9 @@ const (
 
 type Token struct {
 	Type    TokenType
-	Tag     string           
-	Attr    map[string]string 
-	Content string            
+	Tag     string
+	Attr    map[string]string
+	Content string
 }
 
 // tags that never have children and don't need a closing tag
@@ -38,7 +38,7 @@ func findTagEnd(html string, start int) int {
 			}
 		} else {
 			if c == '"' || c == '\'' {
-				inQuote = true  // entering a quoted value
+				inQuote = true // entering a quoted value
 				quoteChar = c
 			} else if c == '>' {
 				return i // real tag end
@@ -81,11 +81,11 @@ func Tokenize(html string) []Token {
 				// closing tag
 				fields := strings.Fields(raw[1:])
 				if len(fields) == 0 {
-					continue // ignore empty close tag 
+					continue // ignore empty close tag
 				}
 				tokens = append(tokens, Token{
 					Type: CloseTag,
-					Tag:  strings.ToLower(fields[0]), 
+					Tag:  strings.ToLower(fields[0]),
 				})
 			} else if strings.HasSuffix(raw, "/") {
 				// explicit self-close
@@ -138,7 +138,7 @@ func Tokenize(html string) []Token {
 			if end == -1 {
 				end = len(html) // text only
 			} else {
-				end += i 
+				end += i
 			}
 
 			content := strings.TrimSpace(html[i:end]) // strip surrounding whitespace
@@ -156,7 +156,7 @@ func Tokenize(html string) []Token {
 	return tokens
 }
 
-//splits raw tag content into tag name and attribute map
+// splits raw tag content into tag name and attribute map
 func parseTagAndAttr(raw string) (string, map[string]string) {
 	raw = strings.TrimSpace(raw)
 	attr := make(map[string]string)
@@ -179,7 +179,7 @@ func parseTagAndAttr(raw string) (string, map[string]string) {
 		spaceIdx := strings.IndexAny(attrStr, " \t\n\r") // any whitespace separator
 
 		if eqIdx == -1 || (spaceIdx != -1 && spaceIdx < eqIdx) {
-			// boolean attribute 
+			// boolean attribute
 			key := attrStr
 			if spaceIdx != -1 {
 				key = attrStr[:spaceIdx]
@@ -193,7 +193,7 @@ func parseTagAndAttr(raw string) (string, map[string]string) {
 		}
 
 		key := strings.ToLower(strings.TrimSpace(attrStr[:eqIdx])) // attr name before =
-		attrStr = attrStr[eqIdx+1:]  // move past =
+		attrStr = attrStr[eqIdx+1:]                                // move past =
 
 		if len(attrStr) == 0 {
 			break
@@ -202,7 +202,7 @@ func parseTagAndAttr(raw string) (string, map[string]string) {
 		if attrStr[0] == '"' || attrStr[0] == '\'' {
 			// quoted value e.g. class="foo"
 			quote := attrStr[0]
-			attrStr = attrStr[1:]  // skip opening quote
+			attrStr = attrStr[1:]                           // skip opening quote
 			closeQuote := strings.IndexByte(attrStr, quote) // find closing quote
 			if closeQuote == -1 {
 				break
