@@ -11,7 +11,7 @@ type Tree struct {
 
 type Node struct {
 	Tag    string            // tag name, empty string means text node
-	Attr   map[string]string // attribute key-value pairs 
+	Attr   map[string]string // attribute key-value pairs
 	Text   string            // text content
 	Child  []*Node           // list of child nodes
 	Parent *Node             // pointer to parent

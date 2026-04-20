@@ -8,8 +8,6 @@ import { TraversalLog } from "@/components/TraversalLog";
 import {
   SAMPLE_HTML,
   analyzeDomTree,
-  fetchDummyHtmlTemplate,
-  fetchHtmlFromSource,
 } from "@/lib/api";
 import type { HtmlTraversalInput, TraversalResult } from "@/types/traversal";
 
@@ -51,12 +49,7 @@ export default function Home() {
     setStatus("Reading HTML source...");
 
     try {
-      const html =
-        nextInput.sourceType === "url"
-          ? await fetchHtmlFromSource(nextInput.source)
-          : nextInput.source;
-
-      const analysis = analyzeDomTree(html, nextInput);
+      const analysis = await analyzeDomTree(nextInput);
       setResult(analysis);
       setStatus(formatStatus(analysis, null));
     } catch (analysisError) {
@@ -76,37 +69,6 @@ export default function Home() {
     setInput((current) => ({ ...current, ...patch }));
   }
 
-  async function handleLoadSample() {
-    setIsLoading(true);
-    setError(null);
-    setStatus("Loading dummy HTML template...");
-
-    try {
-      const dummyHtml = await fetchDummyHtmlTemplate();
-      const sampleInput: HtmlTraversalInput = {
-        ...initialInput,
-        sourceType: "html",
-        source: dummyHtml,
-        selector: ".card, .leaf, [data-depth]",
-        limit: 12,
-      };
-
-      setInput(sampleInput);
-      await runAnalysis(sampleInput);
-    } catch {
-      const fallbackInput: HtmlTraversalInput = {
-        ...initialInput,
-        source: SAMPLE_HTML,
-        sourceType: "html",
-      };
-
-      setInput(fallbackInput);
-      await runAnalysis(fallbackInput);
-    } finally {
-      setIsLoading(false);
-    }
-  }
-
   async function handleSubmit() {
     await runAnalysis(input);
   }
@@ -115,7 +77,7 @@ export default function Home() {
     <main className="relative min-h-screen overflow-x-hidden px-4 py-6 text-[var(--color-white)] sm:px-6 lg:px-8">
 
       <div className="relative mx-auto flex w-full max-w-7xl flex-col gap-6">
-        <section className="overflow-hidden rounded-[1.5rem] border-[3px] border-[var(--color-camel)] bg-[var(--color-navy)]/95 shadow-[12px_12px_0_#121212]">
+        <section className="overflow-hidden rounded-[var(--radius-panel)] border-[3px] border-[var(--color-camel)] bg-[var(--color-navy)]/95 shadow-[12px_12px_0_#121212]">
           <div className="grid gap-0 lg:grid-cols-[1.3fr_0.7fr]">
             <div className="relative p-6 sm:p-8 lg:p-10">
               <div className="relative space-y-6">
@@ -135,7 +97,7 @@ export default function Home() {
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-3">
-                  <div className="rounded-[1.15rem] border-[2px] border-[var(--color-beige)] bg-[var(--color-black)] p-4 shadow-[6px_6px_0_#9fd3f6]">
+                  <div className="rounded-[var(--radius-card)] border-[2px] border-[var(--color-beige)] bg-[var(--color-black)] p-4 shadow-[6px_6px_0_#9fd3f6]">
                     <div className="text-[11px] uppercase tracking-[0.24em] text-[var(--color-light-blue)]">
                       Input mode
                     </div>
@@ -143,7 +105,7 @@ export default function Home() {
                       HTML text or URL
                     </div>
                   </div>
-                  <div className="rounded-[1.15rem] border-[2px] border-[var(--color-beige)] bg-[var(--color-black)] p-4 shadow-[6px_6px_0_#6d1f36]">
+                  <div className="rounded-[var(--radius-card)] border-[2px] border-[var(--color-beige)] bg-[var(--color-black)] p-4 shadow-[6px_6px_0_#6d1f36]">
                     <div className="text-[11px] uppercase tracking-[0.24em] text-[var(--color-burgundy)]">
                       Traversal
                     </div>
@@ -151,7 +113,7 @@ export default function Home() {
                       BFS / DFS
                     </div>
                   </div>
-                  <div className="rounded-[1.15rem] border-[2px] border-[var(--color-beige)] bg-[var(--color-black)] p-4 shadow-[6px_6px_0_#c19a6b]">
+                  <div className="rounded-[var(--radius-card)] border-[2px] border-[var(--color-beige)] bg-[var(--color-black)] p-4 shadow-[6px_6px_0_#c19a6b]">
                     <div className="text-[11px] uppercase tracking-[0.24em] text-[var(--color-camel)]">
                       Output
                     </div>
@@ -178,7 +140,7 @@ export default function Home() {
                 </div>
 
                 <div className="grid gap-3">
-                  <div className="rounded-[1.1rem] border-[2px] border-[var(--color-beige)] bg-[var(--color-black)] p-4">
+                  <div className="rounded-[var(--radius-card)] border-[2px] border-[var(--color-beige)] bg-[var(--color-black)] p-4">
                     <div className="text-[11px] uppercase tracking-[0.24em] text-[var(--color-light-blue)]">
                       Current selector
                     </div>
@@ -186,7 +148,7 @@ export default function Home() {
                       {input.selector}
                     </div>
                   </div>
-                  <div className="rounded-[1.1rem] border-[2px] border-[var(--color-beige)] bg-[var(--color-black)] p-4">
+                  <div className="rounded-[var(--radius-card)] border-[2px] border-[var(--color-beige)] bg-[var(--color-black)] p-4">
                     <div className="text-[11px] uppercase tracking-[0.24em] text-[var(--color-burgundy)]">
                       Match count
                     </div>
@@ -207,10 +169,9 @@ export default function Home() {
             error={error}
             onChange={handleInputChange}
             onAnalyze={handleSubmit}
-            onLoadSample={handleLoadSample}
           />
 
-          <details className="rounded-[1.4rem] border-[3px] border-[var(--color-beige)] bg-[var(--color-navy)]/95 shadow-[10px_10px_0_#121212]">
+          <details className="rounded-[var(--radius-panel)] border-[3px] border-[var(--color-beige)] bg-[var(--color-navy)]/95 shadow-[10px_10px_0_#121212]">
             <summary className="cursor-pointer list-none px-6 py-4 text-sm font-black uppercase tracking-[0.2em] text-[var(--color-light-blue)] sm:px-8">
               Metrics + Logs
             </summary>

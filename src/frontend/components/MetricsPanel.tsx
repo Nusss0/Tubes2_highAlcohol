@@ -10,7 +10,7 @@ export function MetricsPanel({ result }: MetricsPanelProps) {
   const metrics = result?.metrics;
 
   return (
-    <section className="rounded-[1.4rem] border-[3px] border-[var(--color-beige)] bg-[var(--color-navy)]/95 shadow-[10px_10px_0_#121212]">
+    <section className="rounded-[var(--radius-panel)] border-[3px] border-[var(--color-beige)] bg-[var(--color-navy)]/95 shadow-[10px_10px_0_#121212]">
       <div className="px-6 py-5 sm:px-8">
         <div className="flex flex-col gap-3 border-b-[3px] border-[var(--color-beige)] pb-5 sm:flex-row sm:items-end sm:justify-between">
           <div>

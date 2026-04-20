@@ -9,7 +9,7 @@ interface TraversalLogProps {
 export function TraversalLog({ result }: TraversalLogProps) {
   if (!result) {
     return (
-      <section className="rounded-[1.4rem] border-[3px] border-[var(--color-beige)] bg-[var(--color-navy)]/95 shadow-[10px_10px_0_#121212]">
+      <section className="rounded-[var(--radius-panel)] border-[3px] border-[var(--color-beige)] bg-[var(--color-navy)]/95 shadow-[10px_10px_0_#121212]">
         <div className="p-6">
           <div className="text-[11px] font-black uppercase tracking-[0.34em] text-[var(--color-camel)]">
             Traversal Log
@@ -23,7 +23,7 @@ export function TraversalLog({ result }: TraversalLogProps) {
   }
 
   return (
-    <section className="rounded-[1.4rem] border-[3px] border-[var(--color-beige)] bg-[var(--color-navy)]/95 shadow-[10px_10px_0_#121212]">
+    <section className="rounded-[var(--radius-panel)] border-[3px] border-[var(--color-beige)] bg-[var(--color-navy)]/95 shadow-[10px_10px_0_#121212]">
       <div className="border-b-[3px] border-[var(--color-beige)] px-6 py-5 sm:px-8">
         <div className="text-[11px] font-black uppercase tracking-[0.34em] text-[var(--color-camel)]">
           Traversal Log

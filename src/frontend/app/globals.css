@@ -14,6 +14,9 @@
   --color-white: #f9f7f1;
   --color-black: #121212;
   --color-burgundy: #6d1f36;
+  --radius-panel: 20px;
+  --radius-card: 16px;
+  --radius-control: 12px;
 }
 
 @theme inline {

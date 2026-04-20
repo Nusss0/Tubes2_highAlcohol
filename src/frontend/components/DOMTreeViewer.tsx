@@ -119,7 +119,7 @@ function TreeNodeCard({
             <button
               type="button"
               onClick={() => setIsExpanded((prev) => !prev)}
-              className="ml-auto inline-flex items-center gap-2 rounded-[0.8rem] border-[2px] border-[var(--color-beige)] bg-[var(--color-eggplant)]/50 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] text-[var(--color-white)] transition hover:-translate-y-0.5 hover:bg-[var(--color-camel)] hover:text-[var(--color-black)]"
+              className="ml-auto inline-flex items-center gap-2 rounded-[var(--radius-control)] border-[2px] border-[var(--color-beige)] bg-[var(--color-eggplant)]/50 px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] text-[var(--color-white)] transition hover:-translate-y-0.5 hover:bg-[var(--color-camel)] hover:text-[var(--color-black)]"
               aria-expanded={isExpanded}
               aria-label={isExpanded ? "Collapse node children" : "Expand node children"}
             >
@@ -262,33 +262,25 @@ export function DOMTreeViewer({ result }: DOMTreeViewerProps) {
     if (activeElement) {
       const containerRect = container.getBoundingClientRect();
       const elementRect = activeElement.getBoundingClientRect();
+      const comfortPadding = 96;
+      const topBoundary = containerRect.top + comfortPadding;
+      const bottomBoundary = containerRect.bottom - comfortPadding;
 
-      const verticalOutside =
-        elementRect.top < containerRect.top + 48 ||
-        elementRect.bottom > containerRect.bottom - 48;
-      const horizontalOutside =
-        elementRect.left < containerRect.left + 24 ||
-        elementRect.right > containerRect.right - 24;
+      let targetTop = container.scrollTop;
 
-      if (!verticalOutside && !horizontalOutside) {
+      if (elementRect.top < topBoundary) {
+        targetTop -= topBoundary - elementRect.top;
+      } else if (elementRect.bottom > bottomBoundary) {
+        targetTop += elementRect.bottom - bottomBoundary;
+      }
+
+      const delta = Math.abs(targetTop - container.scrollTop);
+      if (delta < 8) {
         return;
       }
 
-      const top =
-        container.scrollTop +
-        (elementRect.top - containerRect.top) -
-        container.clientHeight / 2 +
-        elementRect.height / 2;
-
-      const left =
-        container.scrollLeft +
-        (elementRect.left - containerRect.left) -
-        container.clientWidth / 2 +
-        elementRect.width / 2;
-
       container.scrollTo({
-        top: Math.max(top, 0),
-        left: Math.max(left, 0),
+        top: Math.max(0, targetTop),
         behavior: latestSpeedRef.current <= 360 ? "auto" : "smooth",
       });
     }
@@ -296,7 +288,7 @@ export function DOMTreeViewer({ result }: DOMTreeViewerProps) {
 
   if (!result) {
     return (
-      <section className="rounded-[1.4rem] border-[3px] border-[var(--color-beige)] bg-[var(--color-navy)]/95 shadow-[10px_10px_0_#121212]">
+      <section className="rounded-[var(--radius-panel)] border-[3px] border-[var(--color-beige)] bg-[var(--color-navy)]/95 shadow-[10px_10px_0_#121212]">
         <div className="p-6">
           <div className="text-[11px] font-black uppercase tracking-[0.34em] text-[var(--color-burgundy)]">
             DOM Tree
@@ -310,7 +302,7 @@ export function DOMTreeViewer({ result }: DOMTreeViewerProps) {
   }
 
   return (
-    <section className="rounded-[1.4rem] border-[3px] border-[var(--color-beige)] bg-[var(--color-navy)]/95 shadow-[10px_10px_0_#121212]">
+    <section className="rounded-[var(--radius-panel)] border-[3px] border-[var(--color-beige)] bg-[var(--color-navy)]/95 shadow-[10px_10px_0_#121212]">
       <div className="border-b-[3px] border-[var(--color-beige)] px-6 py-5 sm:px-8">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
           <div>
@@ -336,7 +328,7 @@ export function DOMTreeViewer({ result }: DOMTreeViewerProps) {
         </div>
 
         {activeStep ? (
-          <div className="mt-3 rounded-[0.8rem] border-[2px] border-[var(--color-beige)] bg-[var(--color-black)]/70 px-3 py-2 text-xs text-[var(--color-gray)]">
+          <div className="mt-3 rounded-[var(--radius-control)] border-[2px] border-[var(--color-beige)] bg-[var(--color-black)]/70 px-3 py-2 text-xs text-[var(--color-gray)]">
             <span className="font-black uppercase tracking-[0.18em] text-[var(--color-light-blue)]">
               step #{activeStep.order}
             </span>{" "}
@@ -350,7 +342,7 @@ export function DOMTreeViewer({ result }: DOMTreeViewerProps) {
           <button
             type="button"
             onClick={() => setVisibilityMode("collapse-deep")}
-            className={`rounded-[0.8rem] border-[2px] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] transition ${
+            className={`rounded-[var(--radius-control)] border-[2px] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] transition ${
               visibilityMode === "collapse-deep"
                 ? "border-[var(--color-burgundy)] bg-[var(--color-burgundy)] text-[var(--color-white)]"
                 : "border-[var(--color-beige)] bg-[var(--color-eggplant)]/45 text-[var(--color-white)] hover:bg-[var(--color-beige)] hover:text-[var(--color-black)]"
@@ -361,7 +353,7 @@ export function DOMTreeViewer({ result }: DOMTreeViewerProps) {
           <button
             type="button"
             onClick={() => setVisibilityMode("expand-all")}
-            className={`rounded-[0.8rem] border-[2px] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] transition ${
+            className={`rounded-[var(--radius-control)] border-[2px] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] transition ${
               visibilityMode === "expand-all"
                 ? "border-[var(--color-sage)] bg-[var(--color-sage)] text-[var(--color-black)]"
                 : "border-[var(--color-beige)] bg-[var(--color-eggplant)]/45 text-[var(--color-white)] hover:bg-[var(--color-beige)] hover:text-[var(--color-black)]"
@@ -383,14 +375,14 @@ export function DOMTreeViewer({ result }: DOMTreeViewerProps) {
 
               setIsPlaying((previous) => !previous);
             }}
-            className="rounded-[0.8rem] border-[2px] border-[var(--color-beige)] bg-[var(--color-black)] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] text-[var(--color-white)] transition hover:bg-[var(--color-beige)] hover:text-[var(--color-black)]"
+            className="rounded-[var(--radius-control)] border-[2px] border-[var(--color-beige)] bg-[var(--color-black)] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] text-[var(--color-white)] transition hover:bg-[var(--color-beige)] hover:text-[var(--color-black)]"
           >
             {currentStep >= totalSteps ? "Restart" : isPlaying ? "Pause" : "Play"}
           </button>
           <button
             type="button"
             onClick={() => setSpeedMs(700)}
-            className={`rounded-[0.8rem] border-[2px] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] transition ${
+            className={`rounded-[var(--radius-control)] border-[2px] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] transition ${
               speedMs === 700
                 ? "border-[var(--color-burgundy)] bg-[var(--color-burgundy)] text-[var(--color-white)]"
                 : "border-[var(--color-beige)] bg-[var(--color-eggplant)]/45 text-[var(--color-white)] hover:bg-[var(--color-beige)] hover:text-[var(--color-black)]"
@@ -401,7 +393,7 @@ export function DOMTreeViewer({ result }: DOMTreeViewerProps) {
           <button
             type="button"
             onClick={() => setSpeedMs(450)}
-            className={`rounded-[0.8rem] border-[2px] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] transition ${
+            className={`rounded-[var(--radius-control)] border-[2px] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] transition ${
               speedMs === 450
                 ? "border-[var(--color-burgundy)] bg-[var(--color-burgundy)] text-[var(--color-white)]"
                 : "border-[var(--color-beige)] bg-[var(--color-eggplant)]/45 text-[var(--color-white)] hover:bg-[var(--color-beige)] hover:text-[var(--color-black)]"
@@ -412,7 +404,7 @@ export function DOMTreeViewer({ result }: DOMTreeViewerProps) {
           <button
             type="button"
             onClick={() => setSpeedMs(360)}
-            className={`rounded-[0.8rem] border-[2px] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] transition ${
+            className={`rounded-[var(--radius-control)] border-[2px] px-3 py-1.5 text-[11px] font-black uppercase tracking-[0.2em] transition ${
               speedMs === 360
                 ? "border-[var(--color-burgundy)] bg-[var(--color-burgundy)] text-[var(--color-white)]"
                 : "border-[var(--color-beige)] bg-[var(--color-eggplant)]/45 text-[var(--color-white)] hover:bg-[var(--color-beige)] hover:text-[var(--color-black)]"

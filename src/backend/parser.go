@@ -64,9 +64,9 @@ func Parse(tokens []Token) *Tree {
 			if stack.Peek() == nil {
 				continue
 			}
-			node := NewNode("")         // empty tag = text node
+			node := NewNode("") // empty tag = text node
 			node.Text = token.Content
-			stack.Peek().AddChild(node) // attach but don't push 
+			stack.Peek().AddChild(node) // attach but don't push
 		}
 	}
 
