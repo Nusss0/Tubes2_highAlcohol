@@ -29,8 +29,7 @@ export const SAMPLE_HTML = `
 
 export const DUMMY_HTML_API_ROUTE = "/api/dummy-html";
 export const DUMMY_PRESET_API_ROUTE = "/api/dummy-presets";
-export const BACKEND_API_BASE =
-  process.env.NEXT_PUBLIC_BACKEND_URL?.replace(/\/$/, "") ?? "http://localhost:8080";
+export const TRAVERSE_API_ROUTE = "/api/traverse";
 
 interface DummyHtmlApiResponse {
   html: string;
@@ -76,7 +75,7 @@ export async function fetchHtmlFromSource(source: string) {
 }
 
 export async function analyzeDomTree(input: HtmlTraversalInput): Promise<TraversalResult> {
-  const response = await fetch(`${BACKEND_API_BASE}/api/traverse`, {
+  const response = await fetch(TRAVERSE_API_ROUTE, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

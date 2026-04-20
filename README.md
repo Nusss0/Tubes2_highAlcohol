@@ -76,7 +76,8 @@ Use Docker Compose from the repository root so backend and frontend run together
 docker compose build
 ```
 
-Note: frontend browser requests are configured to call backend on `http://localhost:8080`.
+Note: frontend browser requests use same-origin `/api/traverse`.
+The frontend server proxies those requests to backend using `BACKEND_INTERNAL_URL`.
 
 2. Start both containers
 
@@ -113,4 +114,21 @@ docker compose up -d
 
 ```bash
 docker compose logs -f
+```
+
+## Azure VM Notes
+
+If frontend shows `NetworkError when attempting to fetch resource`, rebuild and restart so the proxy route and env vars are applied:
+
+```bash
+docker compose down
+docker compose up -d --build
+```
+
+Then verify:
+
+```bash
+docker compose ps
+curl -i http://localhost/api/traverse
+curl -i http://localhost:8080/health
 ```
