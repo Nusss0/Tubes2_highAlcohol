@@ -86,7 +86,7 @@ docker compose up
 
 3. Open the apps
 
-- Frontend: http://localhost:3000
+- Frontend: http://localhost
 - Backend health check: http://localhost:8080/health
 
 4. Stop containers
