@@ -57,11 +57,11 @@ type LCAResult struct {
 // menjaga mereka di node berbeda.
 func (e *LCAEngine) Query(u, v int) (*LCAResult, error) {
 	if e == nil || e.idx == nil {
-		return nil, fmt.Errorf("LCA engine kosong")
+		return nil, fmt.Errorf("LCA engine is empty")
 	}
 	n := len(e.idx.Nodes)
 	if u < 0 || u >= n || v < 0 || v >= n {
-		return nil, fmt.Errorf("node id di luar rentang: u=%d v=%d (n=%d)", u, v, n)
+		return nil, fmt.Errorf("node id out of range: u=%d v=%d (n=%d)", u, v, n)
 	}
 	a, b := u, v
 	if e.idx.Depth[a] < e.idx.Depth[b] {

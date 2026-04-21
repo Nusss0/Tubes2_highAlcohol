@@ -7,11 +7,13 @@ import (
 	"time"
 )
 
+// domAttribute adalah bentuk atribut yang dikirim ke FE.
 type domAttribute struct {
 	Name  string `json:"name"`
 	Value string `json:"value"`
 }
 
+// domTreeNode adalah bentuk rekursif pohon yang dikirim ke FE untuk dirender.
 type domTreeNode struct {
 	ID          string         `json:"id"`
 	Label       string         `json:"label"`
@@ -23,6 +25,7 @@ type domTreeNode struct {
 	Children    []domTreeNode  `json:"children"`
 }
 
+// traversalStep mencatat satu langkah BFS/DFS untuk animasi di FE.
 type traversalStep struct {
 	Order    int      `json:"order"`
 	NodeID   string   `json:"nodeId"`
@@ -33,6 +36,7 @@ type traversalStep struct {
 	Message  string   `json:"message"`
 }
 
+// traversalMetrics adalah ringkasan yang ditampilkan FE.
 type traversalMetrics struct {
 	Algorithm    string `json:"algorithm"`
 	Selector     string `json:"selector"`
@@ -44,6 +48,7 @@ type traversalMetrics struct {
 	ElapsedMs    int    `json:"elapsedMs"`
 }
 
+// traversalResponse adalah payload akhir yang dikembalikan ke FE.
 type traversalResponse struct {
 	Tree             domTreeNode      `json:"tree"`
 	Steps            []traversalStep  `json:"steps"`
@@ -53,7 +58,8 @@ type traversalResponse struct {
 	StopReason       string           `json:"stopReason"`
 }
 
-func AnalyzeTraversal(html, sourceType, algorithm, selector, resultScope string, limit int) traversalResponse {
+// AnalyzeTraversal menjalankan BFS/DFS pada pohon HTML.
+func AnalyzeTraversal(html, sourceType, algorithm string, sel *Selector, resultScope string, limit int) traversalResponse {
 	start := time.Now()
 	tokens := Tokenize(html)
 	tree := Parse(tokens)
@@ -64,7 +70,10 @@ func AnalyzeTraversal(html, sourceType, algorithm, selector, resultScope string,
 		idByNode[n] = id
 	}
 
-	matcher := newSelectorMatcher(selector)
+	rawSelector := ""
+	if sel != nil {
+		rawSelector = sel.Raw
+	}
 
 	maxMatches := int(^uint(0) >> 1)
 	if resultScope == "top" {
@@ -104,6 +113,7 @@ func AnalyzeTraversal(html, sourceType, algorithm, selector, resultScope string,
 			continue
 		}
 
+		// DFS push child dari kanan ke kiri supaya saat di-pop urutannya mengikuti dokumen
 		if algorithm == "dfs" {
 			for i := len(idx.Children[currentID]) - 1; i >= 0; i-- {
 				frontier = append(frontier, item{id: idx.Children[currentID][i]})
@@ -116,7 +126,7 @@ func AnalyzeTraversal(html, sourceType, algorithm, selector, resultScope string,
 
 		order++
 		nodeID := nodeIDFromInt(currentID)
-		matched := matcher.matchesByID(currentID, idx)
+		matched := MatchSelector(node, sel)
 		if matched && len(matchedNodeIDs) < maxMatches {
 			matchedNodeIDs = append(matchedNodeIDs, nodeID)
 		}
@@ -129,7 +139,7 @@ func AnalyzeTraversal(html, sourceType, algorithm, selector, resultScope string,
 
 		message := fmt.Sprintf("Visited %s at depth %d.", labelForNode(node), idx.Depth[currentID])
 		if matched {
-			message = fmt.Sprintf("Matched %s for selector %s.", labelForNode(node), selector)
+			message = fmt.Sprintf("Matched %s for selector %s.", labelForNode(node), rawSelector)
 		}
 
 		steps = append(steps, traversalStep{
@@ -148,7 +158,7 @@ func AnalyzeTraversal(html, sourceType, algorithm, selector, resultScope string,
 		}
 	}
 
-	treeJSON := buildTreeJSON(tree.Root, idByNode, matcher, idx, 0)
+	treeJSON := buildTreeJSON(tree.Root, idByNode, sel, 0)
 	elapsed := int(time.Since(start).Milliseconds())
 	if elapsed < 1 {
 		elapsed = 1
@@ -164,7 +174,7 @@ func AnalyzeTraversal(html, sourceType, algorithm, selector, resultScope string,
 		Steps: steps,
 		Metrics: traversalMetrics{
 			Algorithm:    algorithm,
-			Selector:     selector,
+			Selector:     rawSelector,
 			SourceType:   sourceType,
 			MaxDepth:     idx.MaxDepth,
 			TotalNodes:   len(idx.Nodes),
@@ -178,7 +188,7 @@ func AnalyzeTraversal(html, sourceType, algorithm, selector, resultScope string,
 	}
 }
 
-func buildTreeJSON(node *Node, idByNode map[*Node]int, matcher *selectorMatcher, idx *DOMIndex, depth int) domTreeNode {
+func buildTreeJSON(node *Node, idByNode map[*Node]int, sel *Selector, depth int) domTreeNode {
 	nodeID := "root"
 	if id, ok := idByNode[node]; ok {
 		nodeID = nodeIDFromInt(id)
@@ -186,7 +196,7 @@ func buildTreeJSON(node *Node, idByNode map[*Node]int, matcher *selectorMatcher,
 
 	children := make([]domTreeNode, 0, len(node.Child))
 	for _, c := range node.Child {
-		children = append(children, buildTreeJSON(c, idByNode, matcher, idx, depth+1))
+		children = append(children, buildTreeJSON(c, idByNode, sel, depth+1))
 	}
 
 	attrs := attrsToSlice(node.Attr)
@@ -204,12 +214,7 @@ func buildTreeJSON(node *Node, idByNode map[*Node]int, matcher *selectorMatcher,
 		textPreview = textPreview[:137] + "..."
 	}
 
-	isMatch := false
-	if matcher != nil {
-		if id, ok := idByNode[node]; ok {
-			isMatch = matcher.matchesByID(id, idx)
-		}
-	}
+	isMatch := sel != nil && MatchSelector(node, sel)
 
 	return domTreeNode{
 		ID:          nodeID,
@@ -264,188 +269,4 @@ func labelForNode(node *Node) string {
 
 func nodeIDFromInt(id int) string {
 	return fmt.Sprintf("node-%d", id)
-}
-
-type selectorMatcher struct {
-	groups [][]simpleSelector
-}
-
-type simpleSelector struct {
-	tag        string
-	id         string
-	classes    []string
-	attributes []string
-	wildcard   bool
-}
-
-func newSelectorMatcher(selector string) *selectorMatcher {
-	sel := strings.TrimSpace(selector)
-	if sel == "" {
-		sel = "*"
-	}
-
-	groups := make([][]simpleSelector, 0)
-	for _, chunk := range strings.Split(sel, ",") {
-		chunk = strings.TrimSpace(chunk)
-		if chunk == "" {
-			continue
-		}
-		parts := strings.Fields(chunk)
-		selectors := make([]simpleSelector, 0, len(parts))
-		for _, p := range parts {
-			selectors = append(selectors, parseSimpleSelector(p))
-		}
-		if len(selectors) > 0 {
-			groups = append(groups, selectors)
-		}
-	}
-
-	if len(groups) == 0 {
-		groups = [][]simpleSelector{{{wildcard: true}}}
-	}
-
-	return &selectorMatcher{groups: groups}
-}
-
-func parseSimpleSelector(raw string) simpleSelector {
-	raw = strings.TrimSpace(raw)
-	if raw == "*" {
-		return simpleSelector{wildcard: true}
-	}
-
-	sel := simpleSelector{}
-	i := 0
-	for i < len(raw) {
-		switch raw[i] {
-		case '#':
-			j := i + 1
-			for j < len(raw) && isSelectorChar(raw[j]) {
-				j++
-			}
-			sel.id = raw[i+1 : j]
-			i = j
-		case '.':
-			j := i + 1
-			for j < len(raw) && isSelectorChar(raw[j]) {
-				j++
-			}
-			if j > i+1 {
-				sel.classes = append(sel.classes, raw[i+1:j])
-			}
-			i = j
-		case '[':
-			j := strings.IndexByte(raw[i:], ']')
-			if j == -1 {
-				i = len(raw)
-				continue
-			}
-			content := strings.TrimSpace(raw[i+1 : i+j])
-			if content != "" {
-				name := content
-				if eq := strings.IndexByte(content, '='); eq >= 0 {
-					name = strings.TrimSpace(content[:eq])
-				}
-				if name != "" {
-					sel.attributes = append(sel.attributes, strings.ToLower(name))
-				}
-			}
-			i = i + j + 1
-		default:
-			j := i
-			for j < len(raw) && isSelectorChar(raw[j]) {
-				j++
-			}
-			if j > i {
-				sel.tag = strings.ToLower(raw[i:j])
-			}
-			i = j
-		}
-	}
-
-	if sel.tag == "" && sel.id == "" && len(sel.classes) == 0 && len(sel.attributes) == 0 {
-		sel.wildcard = true
-	}
-
-	return sel
-}
-
-func isSelectorChar(b byte) bool {
-	return (b >= 'a' && b <= 'z') ||
-		(b >= 'A' && b <= 'Z') ||
-		(b >= '0' && b <= '9') ||
-		b == '-' || b == '_'
-}
-
-func (m *selectorMatcher) matchesByID(nodeID int, idx *DOMIndex) bool {
-	if idx == nil || nodeID < 0 || nodeID >= len(idx.Nodes) {
-		return false
-	}
-	for _, group := range m.groups {
-		if m.matchesGroup(nodeID, group, idx) {
-			return true
-		}
-	}
-	return false
-}
-
-func (m *selectorMatcher) matchesGroup(nodeID int, group []simpleSelector, idx *DOMIndex) bool {
-	if len(group) == 0 {
-		return false
-	}
-
-	currentID := nodeID
-	for i := len(group) - 1; i >= 0; i-- {
-		if currentID < 0 || currentID >= len(idx.Nodes) {
-			return false
-		}
-		if !matchesSimpleSelector(idx.Nodes[currentID], group[i]) {
-			if i == len(group)-1 {
-				return false
-			}
-			currentID = idx.Parent[currentID]
-			i++
-			continue
-		}
-		if i > 0 {
-			currentID = idx.Parent[currentID]
-		}
-	}
-	return true
-}
-
-func matchesSimpleSelector(node *Node, sel simpleSelector) bool {
-	if node == nil || node.Tag == "" {
-		return false
-	}
-	if sel.wildcard {
-		return true
-	}
-
-	if sel.tag != "" && node.Tag != sel.tag {
-		return false
-	}
-	if sel.id != "" {
-		if nodeID, ok := node.Attr["id"]; !ok || nodeID != sel.id {
-			return false
-		}
-	}
-	if len(sel.classes) > 0 {
-		classRaw := node.Attr["class"]
-		classSet := make(map[string]struct{})
-		for _, c := range strings.Fields(classRaw) {
-			classSet[c] = struct{}{}
-		}
-		for _, c := range sel.classes {
-			if _, ok := classSet[c]; !ok {
-				return false
-			}
-		}
-	}
-	for _, attr := range sel.attributes {
-		if _, ok := node.Attr[attr]; !ok {
-			return false
-		}
-	}
-
-	return true
 }
