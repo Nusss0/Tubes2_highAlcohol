@@ -136,13 +136,19 @@ func traverseHandler(w http.ResponseWriter, r *http.Request) {
 		req.Limit = 1
 	}
 
+	sel, err := ParseSelector(req.Selector)
+	if err != nil {
+		http.Error(w, "invalid selector: "+err.Error(), http.StatusBadRequest)
+		return
+	}
+
 	html, err := resolveHTMLSource(req.SourceType, req.Source)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadRequest)
 		return
 	}
 
-	resp := AnalyzeTraversal(html, req.SourceType, req.Algorithm, req.Selector, req.ResultScope, req.Limit)
+	resp := AnalyzeTraversal(html, req.SourceType, req.Algorithm, sel, req.ResultScope, req.Limit)
 	writeJSON(w, http.StatusOK, resp)
 }
 
