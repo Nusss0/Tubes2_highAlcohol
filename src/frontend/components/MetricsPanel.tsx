@@ -8,6 +8,7 @@ interface MetricsPanelProps {
 
 export function MetricsPanel({ result }: MetricsPanelProps) {
   const metrics = result?.metrics;
+  const lca = result?.lca;
 
   return (
     <section className="rounded-[var(--radius-panel)] border-[3px] border-[var(--color-beige)] bg-[var(--color-navy)]/95 shadow-[10px_10px_0_#121212]">
@@ -47,6 +48,32 @@ export function MetricsPanel({ result }: MetricsPanelProps) {
         {result?.stopReason ? (
           <div className="mt-4 border-[2px] border-[var(--color-camel)] bg-[var(--color-camel)] px-4 py-3 text-sm font-black text-[var(--color-black)]">
             {result.stopReason}
+          </div>
+        ) : null}
+
+        {metrics ? (
+          <div className="mt-4 border-[2px] border-[var(--color-beige)] bg-[var(--color-black)] p-4 text-sm text-[var(--color-gray)]">
+            <div className="text-[11px] font-black uppercase tracking-[0.28em] text-[var(--color-light-blue)]">
+              LCA
+            </div>
+            {lca?.available ? (
+              <div className="mt-2 space-y-2">
+                <div className="text-sm font-black uppercase text-[var(--color-white)]">
+                  {lca.label} ({lca.nodeId})
+                </div>
+                <div className="flex flex-wrap gap-2 text-[11px] font-black uppercase tracking-[0.2em]">
+                  <span className="rounded-full border-[2px] border-[var(--color-beige)] bg-[var(--color-eggplant)]/45 px-2.5 py-1 text-[var(--color-gray)]">
+                    depth {lca.depth}
+                  </span>
+                  <span className="rounded-full border-[2px] border-[var(--color-beige)] bg-[var(--color-eggplant)]/45 px-2.5 py-1 text-[var(--color-gray)]">
+                    matches {lca.matchCount}
+                  </span>
+                </div>
+                <p>{lca.reason}</p>
+              </div>
+            ) : (
+              <p className="mt-2">{lca?.reason ?? "Need at least 2 matches to show LCA."}</p>
+            )}
           </div>
         ) : null}
       </div>

@@ -48,11 +48,22 @@ type traversalMetrics struct {
 	ElapsedMs    int    `json:"elapsedMs"`
 }
 
+// traversalLCA adalah ringkasan node LCA dari node-node yang match selector.
+type traversalLCA struct {
+	Available  bool   `json:"available"`
+	NodeID     string `json:"nodeId"`
+	Label      string `json:"label"`
+	Depth      int    `json:"depth"`
+	MatchCount int    `json:"matchCount"`
+	Reason     string `json:"reason"`
+}
+
 // traversalResponse adalah payload akhir yang dikembalikan ke FE.
 type traversalResponse struct {
 	Tree             domTreeNode      `json:"tree"`
 	Steps            []traversalStep  `json:"steps"`
 	Metrics          traversalMetrics `json:"metrics"`
+	LCA              traversalLCA     `json:"lca"`
 	VisitedOrderByID map[string]int   `json:"visitedOrderById"`
 	MatchedNodeIDs   []string         `json:"matchedNodeIds"`
 	StopReason       string           `json:"stopReason"`
@@ -83,6 +94,7 @@ func AnalyzeTraversal(html, sourceType, algorithm string, sel *Selector, resultS
 	steps := make([]traversalStep, 0, len(idx.Nodes))
 	visited := make(map[string]int, len(idx.Nodes))
 	matchedNodeIDs := make([]string, 0)
+	matchedNodeInts := make([]int, 0)
 
 	type item struct {
 		id int
@@ -129,6 +141,7 @@ func AnalyzeTraversal(html, sourceType, algorithm string, sel *Selector, resultS
 		matched := MatchSelector(node, sel)
 		if matched && len(matchedNodeIDs) < maxMatches {
 			matchedNodeIDs = append(matchedNodeIDs, nodeID)
+			matchedNodeInts = append(matchedNodeInts, currentID)
 		}
 
 		visited[nodeID] = order
@@ -169,6 +182,8 @@ func AnalyzeTraversal(html, sourceType, algorithm string, sel *Selector, resultS
 		stopReason = fmt.Sprintf("Stopped after top %d matches.", maxMatches)
 	}
 
+	lcaInfo := buildMatchedLCA(idx, matchedNodeInts)
+
 	return traversalResponse{
 		Tree:  treeJSON,
 		Steps: steps,
@@ -182,9 +197,44 @@ func AnalyzeTraversal(html, sourceType, algorithm string, sel *Selector, resultS
 			MatchesFound: len(matchedNodeIDs),
 			ElapsedMs:    elapsed,
 		},
+		LCA:              lcaInfo,
 		VisitedOrderByID: visited,
 		MatchedNodeIDs:   matchedNodeIDs,
 		StopReason:       stopReason,
+	}
+}
+
+func buildMatchedLCA(idx *DOMIndex, matchedNodeInts []int) traversalLCA {
+	if len(matchedNodeInts) < 2 {
+		return traversalLCA{
+			Available:  false,
+			MatchCount: len(matchedNodeInts),
+			Reason:     "Need at least 2 matched nodes to compute LCA.",
+		}
+	}
+
+	engine := NewLCAEngine(idx)
+	common := matchedNodeInts[0]
+	for i := 1; i < len(matchedNodeInts); i++ {
+		res, err := engine.Query(common, matchedNodeInts[i])
+		if err != nil {
+			return traversalLCA{
+				Available:  false,
+				MatchCount: len(matchedNodeInts),
+				Reason:     "Failed to compute LCA.",
+			}
+		}
+		common = res.LCA
+	}
+
+	lcaNode := idx.Nodes[common]
+	return traversalLCA{
+		Available:  true,
+		NodeID:     nodeIDFromInt(common),
+		Label:      labelForNode(lcaNode),
+		Depth:      idx.Depth[common],
+		MatchCount: len(matchedNodeInts),
+		Reason:     fmt.Sprintf("Computed from %d matched nodes.", len(matchedNodeInts)),
 	}
 }
 
