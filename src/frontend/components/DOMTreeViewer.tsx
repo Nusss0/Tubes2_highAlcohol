@@ -50,6 +50,7 @@ function TreeNodeCard({
   initialExpandedDepth,
   activeNodeId,
   activeDepth,
+  lcaNodeId,
 }: {
   node: DomTreeNode;
   visitedOrderById: Record<string, number>;
@@ -58,12 +59,14 @@ function TreeNodeCard({
   initialExpandedDepth: number;
   activeNodeId: string | null;
   activeDepth: number;
+  lcaNodeId: string | null;
 }) {
   const [isExpanded, setIsExpanded] = useState(isRoot || node.depth <= initialExpandedDepth);
   const visitOrder = visitedOrderById[node.id];
   const depthTone = DEPTH_TONES[node.depth % DEPTH_TONES.length];
   const isActiveNode = activeNodeId === node.id;
   const isActiveMatchedNode = isActiveNode && node.isMatch;
+  const isLcaNode = lcaNodeId === node.id;
   const frameClass = node.isMatch
     ? "border-[var(--color-burgundy)]/60 bg-[var(--color-burgundy)]/12"
     : visitOrder
@@ -85,7 +88,9 @@ function TreeNodeCard({
 
       <div
         className={`border-[2px] ${frameClass} p-4 shadow-[2px_2px_0_#c19a6b] transition ${
-          isActiveMatchedNode
+          isLcaNode
+            ? "ring-4 ring-[var(--color-sage)] ring-offset-2 ring-offset-[var(--color-black)]"
+            : isActiveMatchedNode
             ? "ring-2 ring-[var(--color-camel)]/80 ring-offset-2 ring-offset-[var(--color-black)]"
             : isActiveNode
               ? "ring-4 ring-[var(--color-light-blue)] ring-offset-2 ring-offset-[var(--color-black)]"
@@ -108,6 +113,11 @@ function TreeNodeCard({
           {node.isMatch ? (
             <span className="rounded-full border-[2px] border-[var(--color-beige)] bg-[var(--color-burgundy)]/70 px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-[var(--color-white)]">
               match
+            </span>
+          ) : null}
+          {isLcaNode ? (
+            <span className="rounded-full border-[2px] border-[var(--color-beige)] bg-[var(--color-sage)] px-2.5 py-1 text-[11px] font-black uppercase tracking-[0.22em] text-[var(--color-black)]">
+              lca
             </span>
           ) : null}
           {isActiveMatchedNode ? (
@@ -170,6 +180,7 @@ function TreeNodeCard({
                 initialExpandedDepth={initialExpandedDepth}
                 activeNodeId={activeNodeId}
                 activeDepth={activeDepth}
+                lcaNodeId={lcaNodeId}
               />
             ))}
           </ul>
@@ -195,6 +206,7 @@ export function DOMTreeViewer({ result }: DOMTreeViewerProps) {
       : null;
   const activeNodeId = activeStep?.nodeId ?? null;
   const activeDepth = activeStep?.depth ?? 0;
+  const lcaNodeId = result?.lca?.available ? result.lca.nodeId : null;
   const initialExpandedDepth =
     visibilityMode === "expand-all"
       ? Number.POSITIVE_INFINITY
@@ -430,6 +442,7 @@ export function DOMTreeViewer({ result }: DOMTreeViewerProps) {
               initialExpandedDepth={initialExpandedDepth}
               activeNodeId={activeNodeId}
               activeDepth={activeDepth}
+              lcaNodeId={lcaNodeId}
             />
           </ul>
         </div>

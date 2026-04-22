@@ -48,10 +48,20 @@ export interface TraversalMetrics {
   elapsedMs: number;
 }
 
+export interface TraversalLca {
+  available: boolean;
+  nodeId: string;
+  label: string;
+  depth: number;
+  matchCount: number;
+  reason: string;
+}
+
 export interface TraversalResult {
   tree: DomTreeNode;
   steps: TraversalStep[];
   metrics: TraversalMetrics;
+  lca?: TraversalLca;
   visitedOrderById: Record<string, number>;
   matchedNodeIds: string[];
   stopReason: string;
