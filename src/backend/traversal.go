@@ -192,7 +192,7 @@ func AnalyzeTraversal(html, sourceType, algorithm string, sel *Selector, resultS
 			Selector:     rawSelector,
 			SourceType:   sourceType,
 			MaxDepth:     idx.MaxDepth,
-			TotalNodes:   len(idx.Nodes),
+			TotalNodes:   len(idx.Nodes) - 1, // exclude synthetic root
 			NodesVisited: len(steps),
 			MatchesFound: len(matchedNodeIDs),
 			ElapsedMs:    elapsed,
