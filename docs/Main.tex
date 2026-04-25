@@ -1,0 +1,63 @@
+\documentclass[a4paper,10pt,oneside]{book}
+\usepackage{CS_report}
+\usepackage[T1]{fontenc}
+\usepackage{pifont}
+
+\makeatletter
+\pretocmd{\tableofcontents}{\hypersetup{linkcolor=black}}{}{}
+\makeatother
+\captionsetup[figure]{margin=1.5cm,font=small,name={Gambar},labelsep=colon}
+\captionsetup[table]{margin=1.5cm,font=small,name={Tabel},labelsep=colon}
+
+\begin{document}
+
+    \frontmatter
+
+    \begin{titlepage}
+        \begin{center}
+
+            \vspace{3cm}
+            {\LARGE \textbf{Laporan Tugas Besar 2}}\\[0.5cm]
+            {\Large IF2211 \textsc{Strategi Algoritma}}\\[0.2cm]
+            {\large Pemanfaatan Algoritma BFS dan DFS dalam Mekanisme\\Penelusuran CSS pada Pohon Document Object Model}\\[0.2cm]
+            {\normalsize Semester II Tahun 2025/2026}\\[1.5cm]
+
+            \begin{figure}[htbp]
+                \centering
+                \includegraphics[width=8cm]{figures/kelompok.jpg}
+                \label{fig:foto_kelompok}
+            \end{figure}
+
+            \vspace{1cm}
+
+            \large Kelompok highAlcohol\\[0.5cm]
+
+            \begin{tabular}{c}
+                \Large{Stevanus Agustaf Wongso} \\ \Large{13524020} \\[0.3cm]
+                \Large{Jonathan Kris Wicaksono} \\ \Large{13524023} \\[0.3cm]
+                \Large{Philipp Hamara} \\ \Large{13524101} \\
+            \end{tabular}
+
+            \vspace{2cm}
+
+            {\normalsize
+            Laboratorium Ilmu dan Rekayasa Komputasi\\
+            Program Studi Teknik Informatika\\
+            Sekolah Teknik Elektro dan Informatika\\
+            Institut Teknologi Bandung}\\[0.3cm]
+
+        \end{center}
+    \end{titlepage}
+
+    \tableofcontents
+
+    \mainmatter
+    \input{chapters/01_Deskripsi}
+    \input{chapters/02_LandasanTeori}
+    \input{chapters/03_AplikasiBFSDFS}
+    \input{chapters/04_Implementasi}
+    \input{chapters/05_Kesimpulan}
+    \input{chapters/lampiran}
+    \input{chapters/dafpus}
+
+\end{document}

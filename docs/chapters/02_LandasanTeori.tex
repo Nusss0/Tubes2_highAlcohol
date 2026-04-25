@@ -1,0 +1,160 @@
+\chapter{Landasan Teori}
+
+\section{HTML dan Document Object Model}
+
+\textit{HyperText Markup Language} (HTML) adalah bahasa markup yang digunakan untuk mendeskripsikan struktur dokumen web. Setiap elemen HTML ditulis dengan pasangan \textit{tag} pembuka dan penutup, misalnya \texttt{<p>...</p>}. Beberapa tag bersifat \textit{self-closing} (\textit{void element}) seperti \texttt{<br>}, \texttt{<img>}, dan \texttt{<input>}. Tag pembuka dapat memuat atribut (\texttt{id}, \texttt{class}, \texttt{href}, dst.) yang memberikan informasi tambahan mengenai elemen.
+
+Pada saat \textit{browser} memuat dokumen HTML, dokumen tersebut diproses oleh \textit{HTML parser} yang mengubah untaian karakter menjadi struktur data pohon \textit{Document Object Model} (DOM). Dalam DOM, setiap tag HTML direpresentasikan sebagai sebuah \textit{node}. Relasi antar tag yang bersarang direpresentasikan sebagai hubungan \textit{parent}-\textit{child}, dan tag yang berada pada tingkat yang sama di bawah parent yang sama menjadi \textit{sibling}. Node teratas adalah \textit{root}, umumnya berupa elemen \texttt{<html>}.
+
+\subsection{Proses \textit{HTML Parsing}}
+Secara umum proses \textit{parsing} terdiri atas dua tahap utama:
+\begin{enumerate}
+    \item \textbf{Tokenisasi (\textit{lexing}):} dokumen HTML dibaca secara karakter-per-karakter dan dikelompokkan menjadi token-token seperti \textit{open tag}, \textit{close tag}, \textit{self-closing tag}, komentar, \texttt{DOCTYPE}, dan \textit{text node}.
+    \item \textbf{Pembentukan pohon:} token dieksekusi secara berurutan menggunakan \textit{stack}. Setiap \textit{open tag} mendorong node baru ke \textit{stack}, \textit{close tag} mem-\textit{pop} satu level, dan \textit{self-closing tag} dilampirkan ke \textit{top-of-stack} tanpa mem-\textit{push}.
+\end{enumerate}
+Struktur pohon yang dihasilkan inilah yang disebut pohon DOM dan menjadi objek yang di-\textit{traverse} oleh algoritma BFS/DFS.
+
+\section{CSS Selector}
+
+\textit{Cascading Style Sheets} (CSS) adalah bahasa stylesheet yang digunakan untuk mengatur tampilan elemen HTML. Pemilihan elemen yang akan di-\textit{style} dilakukan melalui mekanisme CSS \textit{selector}.
+
+\subsection{Selector Dasar (\textit{Simple Selector})}
+\begin{itemize}
+    \item \textbf{Tag selector} --- memilih seluruh elemen dengan nama tag tertentu, mis. \texttt{p}.
+    \item \textbf{Class selector} --- diawali dengan titik, mis. \texttt{.box} memilih seluruh elemen yang atribut \texttt{class}-nya memuat token \texttt{box}.
+    \item \textbf{ID selector} --- diawali tanda pagar, mis. \texttt{\#header}. Bersifat \textit{case-sensitive}.
+    \item \textbf{Universal selector} --- \texttt{*}, memilih semua elemen.
+    \item \textbf{Attribute selector} --- \texttt{[attr]} untuk pengecekan keberadaan, \texttt{[attr=value]} untuk pencocokan nilai eksak.
+\end{itemize}
+
+\textit{Simple selector} dapat ditumpuk pada elemen yang sama menjadi \textit{compound selector}.
+
+\subsection{Kombinator}
+Kombinator menggabungkan beberapa compound menjadi \textit{chained selector} yang mengekspresikan relasi antar node dalam pohon:
+\begin{itemize}
+    \item \textbf{Descendant} (spasi, mis. \texttt{article p}) --- mencocokkan \texttt{p} yang merupakan keturunan dari \texttt{article} di kedalaman berapa pun.
+    \item \textbf{Child} (\texttt{>}, mis. \texttt{ul > li}) --- hanya anak langsung.
+    \item \textbf{Adjacent sibling} (\texttt{+}, mis. \texttt{h1 + p}) --- elemen saudara yang berada \textit{tepat} setelahnya.
+    \item \textbf{General sibling} (\texttt{\textasciitilde}, mis. \texttt{h1 \textasciitilde p}) --- seluruh saudara yang mengikutinya.
+\end{itemize}
+
+Beberapa selector juga dapat digabungkan dengan koma sebagai \textit{selector list} (mis. \texttt{h1, h2, h3}) sehingga cukup salah satu grup cocok untuk menghasilkan \textit{match}.
+
+\section{Graf dan Pohon}
+
+Secara formal, sebuah graf adalah pasangan $G = (V, E)$ dengan $V$ himpunan simpul dan $E$ himpunan sisi. Sebuah \textit{pohon} adalah graf tak berarah yang terhubung dan tidak memiliki siklus, khususnya \textit{rooted tree} merupakan pohon dengan salah satu simpul dipilih sebagai akar sehingga setiap simpul lain memiliki tepat satu \textit{parent}. Pohon DOM adalah \textit{rooted ordered tree}, urutan anak di dalam parent bersifat signifikan karena menentukan hasil selector \texttt{+} dan \texttt{\textasciitilde}.
+
+Beberapa definisi yang akan digunakan:
+\begin{itemize}
+    \item $\textit{depth}(v)$ --- jarak dari akar ke simpul $v$ (depth akar $= 0$).
+    \item $\textit{height}(T)$ --- depth maksimum pada pohon $T$.
+    \item \textit{Leluhur} (ancestor) dari $v$: himpunan simpul pada jalur dari $v$ menuju akar.
+    \item \textit{Lowest Common Ancestor} (LCA) dari $u$ dan $v$: leluhur bersama yang paling dalam (\textit{deepest}).
+\end{itemize}
+
+\section{Breadth First Search (BFS)}
+
+BFS adalah algoritma traversal graf yang menjelajahi seluruh simpul dalam urutan kedalaman: semua simpul pada \textit{depth} $d$ dikunjungi lebih dulu sebelum simpul pada \textit{depth} $d+1$. Struktur data inti BFS adalah \textbf{antrian} (FIFO \textit{queue}). Pada pohon berakar, BFS dapat dinyatakan sebagai:
+
+\begin{algorithm}[H]
+\caption{BFS pada pohon berakar}
+\begin{algorithmic}[1]
+\Require Pohon $T$ dengan akar $r$
+\Ensure Urutan kunjungan $\mathrm{visit}$
+\State $Q \gets \text{queue kosong}$
+\State $\mathrm{visit} \gets [\,]$
+\State enqueue$(Q, r)$
+\While{$Q$ tidak kosong}
+    \State $v \gets \text{dequeue}(Q)$
+    \State tambahkan $v$ ke $\mathrm{visit}$
+    \For{setiap anak $c$ dari $v$ (berurutan dokumen)}
+        \State enqueue$(Q, c)$
+    \EndFor
+\EndWhile
+\State \Return $\mathrm{visit}$
+\end{algorithmic}
+\end{algorithm}
+
+\textbf{Karakteristik:}
+\begin{itemize}
+    \item Menjamin penemuan simpul \textit{match} dengan \textit{depth} terkecil terlebih dahulu (\textit{shallowest match first}).
+    \item Kompleksitas waktu $O(N)$ dengan $N$ banyaknya node pohon.
+    \item Kompleksitas memori $O(W)$ dengan $W$ lebar maksimum pohon (\textit{max width}). Untuk pohon DOM yang lebar, pemakaian memori BFS dapat lebih besar dibanding DFS.
+\end{itemize}
+
+\section{Depth First Search (DFS)}
+
+DFS menelusuri pohon sedalam mungkin terlebih dahulu sebelum \textit{backtrack}. Struktur data inti DFS adalah \textbf{stack} (LIFO). Implementasi iteratif pada pohon berakar:
+
+\begin{algorithm}[H]
+\caption{DFS pada pohon berakar (iteratif)}
+\begin{algorithmic}[1]
+\Require Pohon $T$ dengan akar $r$
+\Ensure Urutan kunjungan $\mathrm{visit}$ (\textit{pre-order} sesuai urutan dokumen)
+\State $S \gets \text{stack kosong}$
+\State push$(S, r)$
+\While{$S$ tidak kosong}
+    \State $v \gets \text{pop}(S)$
+    \State tambahkan $v$ ke $\mathrm{visit}$
+    \For{$c$ anak $v$ dari kanan ke kiri}
+        \State push$(S, c)$
+    \EndFor
+\EndWhile
+\State \Return $\mathrm{visit}$
+\end{algorithmic}
+\end{algorithm}
+
+\textit{Catatan:} anak di-\textit{push} dari kanan ke kiri supaya saat di-\textit{pop} urutan kunjungan mengikuti urutan dokumen, tepat seperti \textit{pre-order DFS} rekursif.
+
+\textbf{Karakteristik:}
+\begin{itemize}
+    \item Menjamin eksplorasi sub-pohon secara utuh sebelum pindah ke sub-pohon saudara.
+    \item Kompleksitas waktu $O(N)$.
+    \item Kompleksitas memori $O(H)$ dengan $H$ tinggi pohon. Pada pohon DOM yang dalam tapi tidak terlalu lebar, DFS lebih hemat memori daripada BFS.
+\end{itemize}
+
+\section{Perbandingan BFS dan DFS}
+
+\begin{table}[H]
+\centering
+\caption{Perbandingan BFS dan DFS pada pohon DOM}
+\begin{tabularx}{\textwidth}{|l|X|X|}
+\hline
+\textbf{Aspek} & \textbf{BFS} & \textbf{DFS} \\
+\hline
+Struktur data & \textit{Queue} (FIFO) & \textit{Stack} (LIFO) / rekursi \\
+\hline
+Urutan kunjungan & Level-by-level dari akar & \textit{Pre-order} mengikuti urutan dokumen \\
+\hline
+Hasil ``top-$n$'' & Cenderung mengambil match dengan \textit{depth} kecil & Cenderung mengambil match yang berada pada sub-pohon kiri yang dalam \\
+\hline
+Memori & $O(W)$ --- lebar maksimum pohon & $O(H)$ --- tinggi pohon \\
+\hline
+Waktu & $O(N)$ & $O(N)$ \\
+\hline
+Kecocokan use-case & Mencari elemen pada level dangkal (mis. header halaman) & Mengambil konten blok sesuai urutan bacaan dokumen \\
+\hline
+\end{tabularx}
+\end{table}
+
+Kedua algoritma memiliki kompleksitas asimtotik yang sama. Pemilihan di antara keduanya lebih ditentukan oleh \textit{urutan hasil} dan \textit{karakteristik memori}, bukan oleh kecepatan eksekusi.
+
+\section{\textit{Lowest Common Ancestor} dengan \textit{Binary Lifting}}
+
+Diberikan dua simpul $u$ dan $v$ pada \textit{rooted tree}, LCA didefinisikan sebagai leluhur bersama terendah dari keduanya. Algoritma naif ``naik satu langkah dari simpul terdalam sampai sama'' berjalan dalam $O(H)$ per \textit{query}. Untuk banyak \textit{query}, teknik \textbf{\textit{binary lifting}} mengurangi biaya menjadi $O(\log N)$ per \textit{query} setelah \textit{preprocessing} $O(N \log N)$.
+
+\textbf{Ide:} \textit{pre-compute} tabel $\mathrm{up}[j][v]$ yang menyimpan leluhur ke-$2^j$ dari $v$, menggunakan relasi:
+\[
+    \mathrm{up}[0][v] = \mathrm{parent}(v), \qquad
+    \mathrm{up}[j][v] = \mathrm{up}[j-1]\bigl[\,\mathrm{up}[j-1][v]\,\bigr]
+\]
+untuk $1 \le j \le \lceil \log_2 N \rceil$. Dengan demikian, setiap lompatan sejauh $2^j$ langkah dapat dilakukan dalam $O(1)$.
+
+\textbf{Prosedur \textit{query}:}
+\begin{enumerate}
+    \item Samakan \textit{depth} kedua node: \textit{lift} node yang lebih dalam sejauh selisih \textit{depth}, didekomposisi dalam basis 2.
+    \item Jika keduanya sudah sama, node tersebut adalah LCA.
+    \item Jika belum, dari $j = k-1$ turun ke $0$: jika $\mathrm{up}[j][u] \ne \mathrm{up}[j][v]$, angkat keduanya bersamaan. Di akhir, \textit{parent} dari $u$ adalah LCA.
+\end{enumerate}
+
+Pada pohon DOM, LCA berguna untuk mencari elemen leluhur bersama terdekat dari dua elemen, mis. \textit{common wrapper} antara dua \textit{node} yang di-\textit{match} oleh dua selector berbeda.
