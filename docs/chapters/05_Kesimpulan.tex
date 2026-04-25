@@ -1,0 +1,33 @@
+\chapter{Kesimpulan dan Saran}
+
+\section{Kesimpulan}
+
+Dari hasil pengerjaan tugas besar ini, kelompok kami mendapat beberapa hal yang ingin disampaikan.
+
+Pertama, BFS dan DFS sebenarnya sama-sama bisa dipakai untuk menelusuri pohon DOM. Pada dokumen-dokumen yang kami uji, selisih waktu eksekusinya kecil sekali, hanya beberapa milidetik, dan itupun masih dalam rentang \textit{noise} yang biasa terjadi karena \textit{garbage collector} Go dan \textit{overhead} serialisasi JSON. Jadi dari sisi kecepatan murni, keduanya praktis setara untuk DOM dengan ukuran yang wajar.
+
+Yang membuat keduanya benar-benar berbeda justru terletak pada urutan hasil yang dikembalikan. BFS akan memunculkan elemen yang dekat dengan akar terlebih dahulu, sementara DFS mengikuti urutan dokumen seperti yang biasa kita lihat ketika membaca file HTML dari atas ke bawah. Perbedaan ini paling kelihatan saat pengguna memilih mode \textit{top-n}: dengan selector yang sama dan $n$ yang sama, BFS dan DFS bisa mengembalikan elemen yang berbeda. BFS lebih cocok kalau yang ingin dicari adalah elemen-elemen besar di level atas seperti \texttt{<header>} atau \texttt{<nav>}, sedangkan DFS lebih cocok untuk mengambil konten secara berurutan.
+
+Dari sisi implementasi, memisahkan representasi pohon menjadi dua, yaitu yang berbasis \textit{pointer} untuk parsing dan yang berbasis \textit{array of int} (\texttt{DOMIndex}) untuk traversal dan LCA, ternyata cukup membantu. Parser jadi gampang ditulis dengan stack biasa, sementara traversal dan binary lifting bisa berjalan lebih cepat karena akses memorinya sekuensial.
+
+Pencocokan selector dengan strategi \textit{right-to-left} juga terbukti efektif. Compound paling kanan biasanya yang paling spesifik, jadi kalau gagal di sini kita bisa langsung berhenti tanpa perlu memeriksa parent atau sibling. Kombinator \texttt{+} dan \texttt{\textasciitilde} pun ternyata cukup ditangani dengan bergeser di daftar saudara, tanpa perlu mengubah kerangka utama algoritma.
+
+Untuk LCA dengan binary lifting, biaya \textit{preprocessing}-nya sangat kecil dibandingkan total biaya parsing HTML. Jadi tidak ada alasan untuk tidak mengaktifkannya secara default. Pengguna mendapat fitur tambahan tanpa kehilangan apa-apa dari sisi performa.
+
+Terakhir, memisahkan \textit{frontend} dan \textit{backend} ke dalam dua layanan yang berbeda dan menyatukannya dengan Docker Compose membuat proses pengembangan dan deployment ke Azure VM jauh lebih rapi. Setiap orang bisa mengerjakan bagiannya tanpa saling mengganggu.
+
+\section{Saran}
+
+Beberapa hal yang menurut kami masih bisa diperbaiki atau dikembangkan di kemudian hari:
+
+\begin{enumerate}
+    \item Selector yang didukung saat ini masih terbatas pada selector dasar dan empat kombinator. Penambahan \textit{pseudo-class} seperti \texttt{:nth-child}, \texttt{:not}, atau \textit{attribute matcher} lanjutan (\texttt{[attr\textasciicircum=val]}, \texttt{[attr*=val]}) akan membuat aplikasi jauh lebih ekspresif tanpa perlu mengubah struktur utama.
+
+    \item Multithreading sengaja tidak kami implementasikan karena pada DOM berukuran wajar tidak terasa manfaatnya (dan kurang waktu untuk eksplorasi). Tetapi untuk dokumen yang sangat besar (puluhan ribu node), pembagian sub-pohon ke beberapa worker bisa jadi memberi peningkatan yang berarti, terutama jika pencocokan selector-nya berat.
+
+    \item Pada pengujian dengan dokumen besar, kami menemukan bahwa sebagian besar waktu sebenarnya habis di serialisasi JSON, bukan di traversal-nya. \textit{Virtualized rendering} di sisi frontend, atau \textit{streaming response} dari backend, kemungkinan besar akan membuat aplikasi terasa lebih responsif.
+
+    \item Modul LCA sudah ada di backend, tetapi belum kami pasang di UI. Idealnya pengguna bisa memilih dua node di pohon dan langsung melihat \textit{common ancestor}-nya. Ini akan sangat berguna untuk \textit{debug} selector yang dirasa kurang spesifik.
+
+    \item \textit{Traversal log} saat ini hanya bisa dilihat di UI. Menambahkan opsi \textit{export} ke CSV atau JSON akan memudahkan kalau pengguna ingin membandingkan beberapa hasil traversal di luar aplikasi.
+\end{enumerate}

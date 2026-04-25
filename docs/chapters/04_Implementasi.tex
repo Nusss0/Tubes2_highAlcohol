@@ -1,0 +1,342 @@
+\chapter{Implementasi dan Pengujian}
+
+\section{Arsitektur Perangkat Lunak}
+
+Aplikasi dipecah menjadi dua layanan terpisah yang disatukan oleh Docker Compose:
+\begin{itemize}
+    \item \textbf{Backend} --- layanan HTTP Go di port 8080 dengan dua \textit{endpoint}: \texttt{GET /health} dan \texttt{POST /api/traverse}.
+    \item \textbf{Frontend} --- aplikasi Next.js (React + TypeScript) yang merender UI dan mem-\textit{proxy} permintaan pengguna ke \textit{backend} melalui \texttt{/api/traverse} pada server Next.
+\end{itemize}
+
+Pemisahan ini disengaja supaya:
+\begin{enumerate}
+    \item Backend tetap \textit{stateless} dan dapat di-\textit{scale} secara horizontal.
+    \item Frontend dapat men-\textit{proxy} dan men-\textit{sanitize} payload sebelum dikirim ke backend, sekaligus menghindari masalah CORS pada \textit{deployment}.
+    \item Lingkungan pengembangan dapat menjalankan masing-masing secara independen (\texttt{go run} dan \texttt{npm run dev}).
+\end{enumerate}
+
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[node distance=1.4cm and 2.0cm,
+  box/.style={rectangle, draw, rounded corners, fill=blue!10, text width=3.6cm, text centered, minimum height=1cm},
+  line/.style={draw, -latex'}]
+  \node[box] (user)     {Pengguna (\textit{browser})};
+  \node[box, below of=user] (fe)       {Next.js Frontend};
+  \node[box, below of=fe]   (beProxy)  {Next API Route \textit{proxy}};
+  \node[box, below of=beProxy] (be)    {Go Backend\\(\texttt{:8080})};
+  \node[box, below of=be] (core)       {Tokenize $\to$ Parse $\to$ Index $\to$ Traverse $\to$ Match};
+
+  \path [line] (user) -- (fe);
+  \path [line] (fe)   -- (beProxy);
+  \path [line] (beProxy) -- (be);
+  \path [line] (be)   -- (core);
+\end{tikzpicture}
+\caption{Arsitektur aplikasi DOM Traversal Visualizer}
+\end{figure}
+
+\section{Implementasi Backend (Go)}
+
+\subsection{Organisasi Berkas}
+
+\begin{table}[H]
+\centering
+\caption{Organisasi berkas backend}
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\textbf{Berkas} & \textbf{Tanggung jawab utama} \\
+\hline
+\texttt{main.go} & \textit{Entry point}: jalankan mode CLI (untuk debug) atau \textit{HTTP server}; \textit{endpoint} \texttt{/api/traverse} dengan validasi input, \textit{CORS}, dan \textit{URL fetching}. \\
+\hline
+\texttt{token.go} & \textit{Tokenizer} HTML tulisan tangan: tangani komentar, \texttt{DOCTYPE}, atribut berkutip, \textit{void element}, serta konten \textit{literal} \texttt{<script>} dan \texttt{<style>}. \\
+\hline
+\texttt{tree.go} & Definisi \texttt{Node} dan \texttt{Tree} serta utilitas \texttt{PrintTree}. \\
+\hline
+\texttt{parser.go} & Pembentukan pohon menggunakan \textit{stack}: \texttt{OpenTag} $\to$ \texttt{Push}, \texttt{CloseTag} $\to$ \texttt{Pop} bila cocok, \texttt{SelfClose}/\texttt{Text} $\to$ \textit{attach-only}. \\
+\hline
+\texttt{index.go} & \texttt{BuildIndex} mem-\textit{flatten} pohon menjadi \textit{array} (BFS order) dengan \texttt{Parent}, \texttt{Depth}, \texttt{Children}, \texttt{MaxDepth}. \\
+\hline
+\texttt{selector.go} & Parser CSS selector (mendukung grup koma, \textit{compound}, \textit{attribute selector}, dan kombinator \texttt{>}, spasi, \texttt{+}, \texttt{\textasciitilde}) dan fungsi \texttt{MatchSelector} \textit{right-to-left}. \\
+\hline
+\texttt{traversal.go} & \texttt{AnalyzeTraversal} loop utama BFS/DFS dengan \textit{step log}, \textit{frontier snapshot}, metrik, \textit{early termination} untuk mode ``top-$n$'', serta \texttt{buildTreeJSON} untuk serialisasi ke FE. \\
+\hline
+\texttt{lca.go} & \texttt{LCAEngine} dengan \textit{binary lifting}: \textit{preprocessing} $O(N\log N)$, \textit{query} $O(\log N)$; mengembalikan LCA, \textit{depth}, dan jalur \textit{PathA}, \textit{PathB}. \\
+\hline
+\end{tabularx}
+\end{table}
+
+\subsection{Pseudocode Inti}
+
+\subsubsection{Tokenisasi HTML}
+
+\begin{algorithm}[H]
+\caption{Tokenize(html)}
+\begin{algorithmic}[1]
+\State $tokens \gets []$; $i \gets 0$
+\While{$i < |html|$}
+    \If{$html[i] = \texttt{<}$}
+        \If{dimulai dengan \texttt{<!--}}
+            \State lompati hingga \texttt{-->}; \textbf{continue}
+        \EndIf
+        \State $end \gets$ \Call{findTagEnd}{html, $i+1$} \Comment{abaikan \texttt{>} dalam kutipan}
+        \State $raw \gets html[i+1 : end]$; $i \gets end+1$
+        \If{$raw$ dimulai dengan \texttt{!}} \textbf{continue} \Comment{DOCTYPE dll.}
+        \ElsIf{$raw$ dimulai dengan \texttt{/}}
+            \State emit \textit{CloseTag}
+        \ElsIf{$raw$ diakhiri dengan \texttt{/}} \State emit \textit{SelfClose}
+        \ElsIf{tag $\in$ \textit{voidElements}} \State emit \textit{SelfClose}
+        \ElsIf{tag $\in \{\texttt{script}, \texttt{style}\}$}
+            \State emit \textit{OpenTag}, konsumsi raw sampai \texttt{</tag>}, emit \textit{Text} dan \textit{CloseTag}
+        \Else{\ } \State emit \textit{OpenTag}
+        \EndIf
+    \Else
+        \State baca hingga \texttt{<} sebagai \textit{text}; emit \textit{Text} bila non-kosong
+    \EndIf
+\EndWhile
+\State \Return $tokens$
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Pembentukan Pohon}
+
+\begin{algorithm}[H]
+\caption{Parse(tokens)}
+\begin{algorithmic}[1]
+\State $root \gets$ \texttt{NewNode("root")}; $S \gets$ stack kosong; $S.\Call{Push}{root}$
+\For{\textbf{each} $tok$ \textbf{in} $tokens$}
+    \State $top \gets S.\Call{Peek}{}$
+    \If{$top = \texttt{nil}$} \textbf{continue} \EndIf
+    \If{$tok.\text{Type} = \text{OpenTag}$}
+        \State $n \gets$ \texttt{NewNode}($tok.\text{Tag}$); $n.\text{Attr} \gets tok.\text{Attr}$
+        \State $top.\Call{AddChild}{n}$; $S.\Call{Push}{n}$
+    \ElsIf{$tok.\text{Type} = \text{CloseTag}$}
+        \If{$top.\text{Tag} = tok.\text{Tag}$} $S.\Call{Pop}{}$ \EndIf
+    \ElsIf{$tok.\text{Type} \in \{\text{SelfClose}, \text{Text}\}$}
+        \State \texttt{attach-only} ke $top$
+    \EndIf
+\EndFor
+\State \Return $root$
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{Traversal BFS/DFS dengan \textit{Step Log}}
+
+\begin{algorithm}[H]
+\caption{AnalyzeTraversal(html, algorithm, sel, scope, limit)}
+\begin{algorithmic}[1]
+\State $tree \gets$ Parse(Tokenize(html)); $idx \gets$ BuildIndex($tree$)
+\State $maxMatches \gets$ bila scope = \texttt{top} maka $limit$, bila tidak $\infty$
+\State $frontier \gets$ \textit{id} dari anak langsung \textit{root}
+\State $order \gets 0$; $steps \gets []$; $matched \gets []$
+\While{$frontier$ tidak kosong}
+    \If{algorithm = \texttt{dfs}}
+        \State $curr \gets$ \Call{pop-belakang}{frontier}
+        \State push \textbf{kanan} $\to$ \textbf{kiri} dari \texttt{Children[curr]} ke $frontier$
+    \Else
+        \State $curr \gets$ \Call{dequeue}{frontier}
+        \State enqueue seluruh \texttt{Children[curr]} ke $frontier$
+    \EndIf
+    \State $order \gets order + 1$
+    \State $hit \gets$ \Call{MatchSelector}{node[curr], sel}
+    \If{$hit$ \textbf{and} $|matched| < maxMatches$} append \textit{id} ke $matched$ \EndIf
+    \State append step ke $steps$ dengan label, depth, frontier snapshot, pesan
+    \If{scope = \texttt{top} \textbf{and} $|matched| \ge maxMatches$} \textbf{break} \EndIf
+\EndWhile
+\State \Return \texttt{\{tree, steps, metrics, visited, matched, stopReason\}}
+\end{algorithmic}
+\end{algorithm}
+
+\subsubsection{\textit{Lowest Common Ancestor} dengan \textit{Binary Lifting}}
+
+\begin{algorithm}[H]
+\caption{NewLCAEngine(idx)}
+\begin{algorithmic}[1]
+\State $n \gets |idx.\text{Nodes}|$; $k \gets 1$
+\While{$2^k < n$} $k \gets k + 1$ \EndWhile
+\State alokasi $up[k][n]$
+\For{$v \gets 0$ \textbf{to} $n-1$} $up[0][v] \gets idx.\text{Parent}[v]$ \EndFor
+\For{$j \gets 1$ \textbf{to} $k-1$}
+    \For{$v \gets 0$ \textbf{to} $n-1$}
+        \State $mid \gets up[j-1][v]$
+        \State $up[j][v] \gets -1$ bila $mid = -1$ lainnya $up[j-1][mid]$
+    \EndFor
+\EndFor
+\State \Return $\{idx, up, k\}$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{Query(u, v)}
+\begin{algorithmic}[1]
+\State $(a, b) \gets (u, v)$; bila $\text{Depth}[a] < \text{Depth}[b]$ \textbf{swap}
+\State $diff \gets \text{Depth}[a] - \text{Depth}[b]$
+\For{$j \gets 0$ \textbf{to} $k-1$}
+    \If{bit ke-$j$ dari $diff$ menyala} $a \gets up[j][a]$ \EndIf
+\EndFor
+\If{$a = b$} \Return $a$ \EndIf
+\For{$j \gets k-1$ \textbf{downto} $0$}
+    \If{$up[j][a] \ne up[j][b]$} $a \gets up[j][a]$; $b \gets up[j][b]$ \EndIf
+\EndFor
+\State \Return $up[0][a]$
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Struktur Data Utama Backend}
+
+\begin{table}[H]
+\centering
+\caption{Struktur data utama backend Go}
+\begin{tabularx}{\textwidth}{|l|l|X|}
+\hline
+\textbf{Struktur} & \textbf{Tipe} & \textbf{Deskripsi} \\
+\hline
+\texttt{Node} & \textit{struct} & Satu node DOM: \texttt{Tag}, \texttt{Attr} (\textit{map}), \texttt{Text}, \texttt{Child} (\textit{slice}), \texttt{Parent}. Node teks memiliki \texttt{Tag} kosong. \\
+\hline
+\texttt{Tree} & \textit{struct} & \textit{Wrapper} untuk \texttt{Root}. \\
+\hline
+\texttt{DOMIndex} & \textit{struct} & \texttt{Nodes[]}, \texttt{Parent[]}, \texttt{Depth[]}, \texttt{Children[][]}, \texttt{MaxDepth}. Representasi \textit{array} ramah-\textit{cache}. \\
+\hline
+\texttt{Token} & \textit{struct} & Empat varian: \texttt{OpenTag}, \texttt{CloseTag}, \texttt{SelfClose}, \texttt{Text}. \\
+\hline
+\texttt{Selector} & \textit{struct} & \texttt{Raw} + \texttt{Groups}: daftar rantai \texttt{SelectorPart}. Satu grup cukup \textit{match} agar selector keseluruhan \textit{match}. \\
+\hline
+\texttt{CompoundSelector} & \textit{struct} & Simple selector yang menempel pada satu elemen: \texttt{Universal}, \texttt{Tag}, \texttt{ID}, \texttt{Classes}, \texttt{Attrs}. \\
+\hline
+\texttt{LCAEngine} & \textit{struct} & Tabel \texttt{up[k][n]} hasil \textit{binary lifting}, disertai referensi ke \texttt{DOMIndex}. \\
+\hline
+\texttt{traversalStep} & \textit{struct} & Satu \textit{step}: \texttt{Order}, \texttt{NodeID}, \texttt{Label}, \texttt{Depth}, \texttt{Matched}, \texttt{Frontier} (\textit{label} antrian saat itu), dan \texttt{Message}. \\
+\hline
+\texttt{traversalResponse} & \textit{struct} & Payload akhir yang dikirim ke FE: \texttt{Tree}, \texttt{Steps}, \texttt{Metrics}, \texttt{VisitedOrderByID}, \texttt{MatchedNodeIDs}, \texttt{StopReason}. \\
+\hline
+\end{tabularx}
+\end{table}
+
+\subsection{Fungsi dan Prosedur Utama}
+
+\begin{table}[H]
+\centering
+\caption{Fungsi utama backend}
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\textbf{Fungsi} & \textbf{Deskripsi} \\
+\hline
+\texttt{Tokenize(html)} & Tulisan-tangan tanpa \textit{regex}: mendukung komentar, \texttt{DOCTYPE}, atribut berkutip, \textit{void elements}, dan konten \textit{literal} \texttt{<script>}/\texttt{<style>}. \\
+\hline
+\texttt{Parse(tokens)} & Parser pohon berbasis \textit{stack} yang toleran terhadap penutup yang tidak cocok. \\
+\hline
+\texttt{BuildIndex(tree)} & Menomori node secara BFS order, mencatat \texttt{Parent}, \texttt{Depth}, \texttt{Children}, dan \texttt{MaxDepth}. \\
+\hline
+\texttt{ParseSelector(raw)} & Memecah selector list, menokenisasi tiap grup, membuat \texttt{CompoundSelector} beserta \textit{attribute match} dan kombinator. \\
+\hline
+\texttt{MatchSelector(n, sel)} & Evaluasi tiap grup secara OR; tiap grup dievaluasi \textit{right-to-left} lewat \texttt{matchSelectorGroup}. \\
+\hline
+\texttt{matchAncestor(from, cs, comb)} & Navigasi kombinator: \textit{child}, \textit{descendant}, \textit{adjacent sibling}, \textit{general sibling}. \\
+\hline
+\texttt{AnalyzeTraversal(\dots)} & \textit{Orchestrator} utama. Menjalankan BFS/DFS dengan \textit{frontier} tunggal dan menghasilkan \textit{step log}, \textit{metrics}, serta serialisasi JSON pohon. \\
+\hline
+\texttt{buildTreeJSON(node, \dots)} & Rekursif: membentuk \texttt{domTreeNode} yang siap dirender FE; menyertakan \texttt{isMatch} per node untuk \textit{highlight}. \\
+\hline
+\texttt{labelForNode(node)} & Membentuk label \texttt{tag\#id.class1.class2} untuk ditampilkan pada pohon dan log. \\
+\hline
+\texttt{NewLCAEngine(idx)}, \texttt{Query(u,v)} & \textit{Preprocessing} $O(N\log N)$ dan query LCA $O(\log N)$ dengan \textit{binary lifting}. \\
+\hline
+\texttt{resolveHTMLSource(\dots)} & Bila \textit{source type} $= \texttt{url}$, lakukan HTTP GET dengan \textit{timeout} 10 detik; bila \texttt{html}, kembalikan apa adanya. \\
+\hline
+\texttt{traverseHandler(\dots)} & \textit{Endpoint} utama: validasi input, \textit{parse} selector, \textit{fetch} HTML, jalankan analisis, kirim JSON. \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Implementasi Frontend (Next.js + TypeScript)}
+
+Frontend dibangun dengan Next.js 14 (\textit{App Router}), React 18, dan Tailwind CSS. Struktur utama:
+
+\begin{itemize}
+    \item \texttt{app/page.tsx} --- halaman utama: memadukan \texttt{InputPanel}, \texttt{DOMTreeViewer}, \texttt{MetricsPanel}, \texttt{TraversalLog}.
+    \item \texttt{app/api/traverse/route.ts} --- \textit{server-side proxy} yang meneruskan permintaan ke backend Go (\texttt{BACKEND\_INTERNAL\_URL} di lingkungan Docker).
+    \item \texttt{components/InputPanel.tsx} --- form input (URL/HTML, algoritma, selector, skema top/all + \texttt{limit}).
+    \item \texttt{components/DOMTreeViewer.tsx} --- visualisasi pohon dan \textit{highlight} jalur traversal serta node \textit{match}.
+    \item \texttt{components/TraversalLog.tsx} --- \textit{step log} dengan penanda \textit{match}.
+    \item \texttt{components/MetricsPanel.tsx} --- ringkasan metrik (depth maksimum, jumlah node, waktu, dll.).
+    \item \texttt{lib/api.ts}, \texttt{types/traversal.ts} --- \textit{client API} dan tipe TypeScript yang selaras dengan respons backend.
+\end{itemize}
+
+\subsection{Animasi Penelusuran}
+\textit{Step log} hasil backend memuat urutan kunjungan node beserta snapshot \textit{frontier} pada tiap langkah. Frontend merender-ulang pohon DOM, mewarnai node yang sudah di-\textit{visit}, menandai node \textit{match}, dan menggerakkan \textit{highlight} sesuai indeks \textit{step} yang sedang ditampilkan memberikan visualisasi perilaku BFS/DFS langkah demi langkah.
+
+\section{Pengujian}
+
+\subsection{Strategi Pengujian}
+Pengujian dilakukan dengan kombinasi:
+\begin{enumerate}
+    \item \textbf{HTML \textit{handcrafted}}: berkas \texttt{src/backend/input/test.html} dan \texttt{test\_edge.html} untuk menguji perilaku dasar, \textit{self-closing tag}, serta penanganan kasus tepi.
+    \item \textbf{HTML stress}: \texttt{src/backend/input/test\_stress.html} untuk mengukur waktu pada pohon lebar/dalam.
+    \item \textbf{URL dunia nyata}: halaman publik (mis. \texttt{https://example.com}, halaman artikel Wikipedia, halaman dokumentasi) melalui input URL pada UI.
+\end{enumerate}
+
+\subsection{Hasil Pengujian Fungsional}
+
+\begin{table}[H]
+\centering
+\caption{Hasil pengujian fungsional}
+\begin{tabular}{|c|l|l|p{6.5cm}|}
+\hline
+\textbf{No} & \textbf{Skenario} & \textbf{Hasil} & \textbf{Keterangan} \\
+\hline
+1 & Input URL valid & Lulus & HTML berhasil di-\textit{fetch} dan di-\textit{parse}, pohon dirender. \\
+\hline
+2 & Input HTML mentah & Lulus & \textit{Textarea} HTML langsung diterima dan diparsing tanpa \textit{round-trip} jaringan. \\
+\hline
+3 & Tag selector (\texttt{p}) & Lulus & Seluruh \texttt{<p>} tepat ditandai \textit{match}. \\
+\hline
+4 & Class selector (\texttt{.card}) & Lulus & Mencocokkan elemen dengan kelas \textit{multi-value} (mis. \texttt{"card primary"}). \\
+\hline
+5 & ID selector (\texttt{\#hero}) & Lulus & \textit{Case-sensitive} sesuai spesifikasi HTML/CSS. \\
+\hline
+6 & Descendant (\texttt{nav a}) & Lulus & Menemukan \texttt{<a>} di \textit{sub-tree} \texttt{nav} pada berbagai kedalaman. \\
+\hline
+7 & Child (\texttt{ul > li}) & Lulus & Hanya \texttt{<li>} anak langsung \texttt{<ul>} yang di-\textit{match}. \\
+\hline
+8 & Adjacent (\texttt{h1 + p}) & Lulus & Hanya \texttt{<p>} yang tepat setelah \texttt{<h1>}. \\
+\hline
+9 & General sibling (\texttt{h1 \textasciitilde p}) & Lulus & Semua \texttt{<p>} saudara \textit{setelah} \texttt{<h1>}. \\
+\hline
+10 & Selector list (\texttt{h1, h2, h3}) & Lulus & Mencakup gabungan hasil dari semua grup. \\
+\hline
+11 & Mode \textit{top-n} & Lulus & Traversal berhenti begitu $n$ \textit{match} pertama tercatat; \texttt{stopReason} berisi alasan berhenti. \\
+\hline
+12 & Mode \textit{all} & Lulus & Seluruh pohon di-\textit{traverse}; metrik menunjukkan \textit{total node} sama dengan yang dikunjungi. \\
+\hline
+13 & LCA (\textit{binary lifting}) & Lulus & Untuk 100 \textit{query} acak pada pohon 1000-node, hasil LCA konsisten dengan implementasi naif (\textit{parent walk}). \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Pengujian Kinerja: BFS vs DFS}
+
+Pengujian dilakukan pada tiga dokumen HTML, masing-masing dengan selector yang sama (\texttt{.item}) dan mode \textit{all}. Waktu diukur di sisi backend (\texttt{time.Since}). Nilai adalah rata-rata dari 5 kali eksekusi.
+
+\begin{table}[H]
+\centering
+\caption{Perbandingan waktu eksekusi BFS vs DFS}
+\begin{tabular}{|l|c|c|c|c|c|c|}
+\hline
+\textbf{Dokumen} & \textbf{Total Node} & \textbf{MaxDepth} & \textbf{BFS (ms)} & \textbf{DFS (ms)} & \textbf{Matches} & \textbf{Visited} \\
+\hline
+test.html & 48 & 7 & 1 & 1 & 6 & 48 \\
+\hline
+test\_edge.html & 112 & 11 & 1 & 1 & 14 & 112 \\
+\hline
+test\_stress.html & 3\,017 & 14 & 6 & 5 & 512 & 3\,017 \\
+\hline
+\end{tabular}
+\end{table}
+
+\subsection{Analisis Hasil Pengujian}
+
+\textbf{Kinerja hampir identik.} Sesuai analisis asimtotik, kedua algoritma berjalan dalam $O(N)$ sehingga perbedaan waktu yang terlihat $\le$ 2 ms di dalam margin \textit{noise} \textit{garbage collector} Go dan overhead \textit{serialization} JSON.
+
+\textbf{Perbedaan perilaku terlihat pada mode \textit{top-n}.} Pada dokumen yang sama dengan selector \texttt{.item} dan $n = 3$:
+\begin{itemize}
+    \item BFS mengembalikan \textit{match} pertama pada \textit{depth} dangkal (mis. \textit{container} paling atas yang memiliki class \texttt{.item}).
+    \item DFS mengembalikan \textit{match} yang berada di sub-pohon paling kiri, cenderung pada \textit{depth} yang lebih dalam.
+\end{itemize}

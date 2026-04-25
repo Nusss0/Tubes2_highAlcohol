@@ -1,0 +1,45 @@
+\chapter{Deskripsi Tugas}
+
+\section{Latar Belakang}
+
+\textit{Document Object Model} (DOM) adalah representasi terstruktur dari sebuah dokumen HTML dalam bentuk pohon yang memungkinkan setiap elemen pada halaman web untuk diakses, dimodifikasi, dan dimanipulasi secara terprogram. Struktur ini merepresentasikan relasi antar elemen HTML (\textit{parent}, \textit{child}, dan \textit{sibling}) sehingga sangat memudahkan pengolahan dokumen secara otomatis. Elemen \texttt{<html>} berperan sebagai \textit{root} yang membawahi dua bagian utama, yaitu \texttt{<head>} dan \texttt{<body>}.
+
+Visualisasi dari pohon DOM dideklarasikan melalui \textit{Cascading Style Sheets} (CSS). Untuk mentargetkan elemen yang akan diberi gaya, CSS menggunakan mekanisme \textit{CSS Selector}. Mekanisme pencocokan selector terhadap pohon DOM pada dasarnya adalah proses \textit{graph traversal} terhadap struktur pohon.
+
+Pada Tugas Besar 2 IF2211 Strategi Algoritma ini, mahasiswa diminta membangun aplikasi berbasis web yang melakukan penelusuran CSS pada pohon DOM menggunakan dua algoritma klasik, yaitu \textit{Breadth First Search} (BFS) dan \textit{Depth First Search} (DFS). Aplikasi menerima input berupa URL atau teks HTML mentah, \textit{selector}, algoritma, dan jumlah hasil yang kemudian menghasilkan visualisasi pohon DOM, jalur traversal yang di-\textit{highlight}, metrik waktu dan banyaknya node yang dikunjungi, serta \textit{traversal log}.
+
+\section{Spesifikasi Tugas}
+
+\subsection{Spesifikasi Wajib}
+Aplikasi yang dibangun harus memenuhi ketentuan-ketentuan berikut:
+\begin{enumerate}
+    \item Aplikasi berbasis web dengan \textit{frontend} bebas dan \textit{backend} dalam salah satu bahasa yang diperbolehkan (Go, C\#, Rust, atau TypeScript).
+    \item Mampu melakukan \textit{scraping} HTML dari URL yang diberikan pengguna, atau menerima input teks HTML mentah secara langsung.
+    \item Input aplikasi meliputi:
+    \begin{itemize}
+        \item URL atau teks HTML sendiri
+        \item Pilihan algoritma traversal (BFS atau DFS)
+        \item CSS selector
+        \item Jumlah hasil (\textit{top n} atau seluruh kemunculan)
+    \end{itemize}
+    \item HTML diparsing menjadi struktur pohon DOM.
+    \item Output yang diharapkan:
+    \begin{itemize}
+        \item Visualisasi struktur pohon DOM beserta kedalaman maksimumnya.
+        \item \textit{Highlight} pada jalur traversal yang ditempuh algoritma.
+        \item Waktu pencarian dan jumlah node yang dikunjungi.
+        \item \textit{Traversal log} yang menyimpan tahapan pencarian.
+    \end{itemize}
+    \item Program disertai README, dan dapat dikompilasi pada Windows maupun Linux.
+\end{enumerate}
+
+\subsection{Spesifikasi Bonus}
+Bonus yang tersedia (maks. 20 poin) terdiri dari:
+\begin{enumerate}
+    \item \textbf{Video (4 poin):} Video demo aplikasi dengan audio dan wajah seluruh anggota kelompok, diunggah ke YouTube.
+    \item \textbf{Deploy (5 poin):} \textit{Deployment} aplikasi ke Microsoft Azure Virtual Machine sehingga dapat diakses secara publik.
+    \item \textbf{Docker (2 poin):} Seluruh aplikasi (\textit{frontend} dan \textit{backend}) dijalankan melalui kontainer Docker.
+    \item \textbf{Animasi (6 poin):} Menampilkan animasi penelusuran pohon DOM untuk setiap jenis pencarian.
+    \item \textbf{Multithreading (3 poin):} Implementasi paralelisasi pada BFS/DFS untuk memproses beberapa node secara bersamaan.
+    \item \textbf{LCA Binary Lifting (3 poin):} Implementasi algoritma \textit{Lowest Common Ancestor} dengan teknik \textit{binary lifting} untuk menentukan leluhur bersama terendah dari dua elemen DOM.
+\end{enumerate}

@@ -1,0 +1,94 @@
+\chapter*{Lampiran}
+\addcontentsline{toc}{chapter}{Lampiran}
+
+\section*{Tautan Repository GitHub}
+
+\begin{center}
+\url{https://github.com/Nusss0/Tubes2_highAlcohol}
+\end{center}
+
+\section*{Tautan Deployment Azure}
+\begin{center}
+\url{http://4.194.26.56}
+\end{center}
+\noindent\textit{Disclaimer: Aplikasi deployment mungkin sedang tidak aktif untuk menghindari penggunaan biaya. Silakan menghubungi salah satu anggota tim untuk mengaktifkannya kembali jika diperlukan.}
+
+\section*{Pembagian Kerja}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|l|p{7.5cm}|}
+\hline
+\textbf{No.} & \textbf{Anggota} & \textbf{Kontribusi} \\
+\hline
+1 & Stevanus Agustaf Wongso (13524020) & Tokenizer HTML, parser pohon berbasis \textit{stack} (\texttt{token.go}, \texttt{parser.go}), \texttt{DOMIndex}, serta penulisan laporan. \\
+\hline
+2 & Jonathan Kris Wicaksono (13524023) & Mesin BFS/DFS dan \textit{step log} (\texttt{traversal.go}), parser CSS selector dan \texttt{MatchSelector} (\texttt{selector.go}), LCA \textit{binary lifting} (\texttt{lca.go}), serta penulisan laporan. \\
+\hline
+3 & Philipp Hamara (13524101) & Frontend Next.js (\texttt{InputPanel}, \texttt{DOMTreeViewer}, \texttt{TraversalLog}, \texttt{MetricsPanel}), animasi traversal, integrasi API, \textit{deployment} Azure \& Docker, serta penulisan laporan. \\
+\hline
+\end{tabular}
+\end{table}
+
+\section*{Tabel Evaluasi Pengerjaan}
+
+\begin{table}[H]
+\centering
+\begin{tabular}{|c|p{9cm}|c|c|}
+\hline
+\textbf{No.} & \textbf{Poin} & \textbf{Ya} & \textbf{Tidak} \\
+\hline
+1 & Aplikasi berhasil di kompilasi tanpa kesalahan & \ding{51} & \\
+\hline
+2 & Aplikasi berhasil dijalankan & \ding{51} & \\
+\hline
+3 & Aplikasi dapat menerima input URL web, pilihan algoritma, CSS selector, dan jumlah hasil & \ding{51} & \\
+\hline
+4 & Aplikasi dapat melakukan scraping terhadap web pada input & \ding{51} & \\
+\hline
+5 & Aplikasi dapat menampilkan visualisasi pohon DOM & \ding{51} & \\
+\hline
+6 & Aplikasi dapat menelusuri pohon DOM dan menampilkan hasil penelusuran & \ding{51} & \\
+\hline
+7 & Aplikasi dapat menandai jalur tempuh oleh algoritma & \ding{51} & \\
+\hline
+8 & Aplikasi dapat menyimpan jalur yang ditempuh algoritma dalam traversal log & \ding{51} & \\
+\hline
+9 & [Bonus] Membuat video & & \ding{55} \\
+\hline
+10 & [Bonus] Deploy aplikasi & \ding{51} & \\
+\hline
+11 & [Bonus] Implementasi animasi pada penelusuran pohon & \ding{51} & \\
+\hline
+12 & [Bonus] Implementasi multithreading & & \ding{55} \\
+\hline
+13 & [Bonus] Implementasi LCA Binary Lifting & \ding{51} & \\
+\hline
+\end{tabular}
+\end{table}
+
+
+\section*{Pernyataan}
+
+\vspace{0.5cm}
+\noindent\fbox{%
+\begin{minipage}{\dimexpr\textwidth-2\fboxsep-2\fboxrule\relax}
+    \vspace{0.2cm}
+    Tugas ini disusun sepenuhnya tanpa bantuan kecerdasan buatan (\textit{Generative AI}), melainkan hasil pemikiran dan analisis mandiri.
+    \vspace{1.5cm}
+
+    \begin{flushright}
+        \begin{tabular}{c}
+            \includegraphics[width=3cm]{figures/stevanus} \\[0.8cm]
+            Stevanus Agustaf Wongso \\[1cm]
+
+            \includegraphics[width=3cm]{figures/jo} \\[0.8cm]
+            Jonathan Kris Wicaksono \\[1cm]
+
+            \includegraphics[width=3cm]{figures/philipp} \\[0.8cm]
+            Philipp Hamara \\
+        \end{tabular}
+    \end{flushright}
+    \vspace{0.2cm}
+\end{minipage}%
+}

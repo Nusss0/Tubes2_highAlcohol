@@ -1,0 +1,130 @@
+\chapter{Aplikasi BFS dan DFS pada Penelusuran Pohon DOM}
+
+\section{Pemodelan Pohon DOM}
+
+Langkah pertama dalam aplikasi ini adalah mengubah string HTML menjadi struktur data pohon yang dapat di-\textit{traverse} secara efisien. Pemodelan yang dipakai:
+
+\begin{itemize}
+    \item Setiap elemen HTML menjadi sebuah \texttt{Node} dengan atribut \texttt{Tag}, \texttt{Attr} (\textit{map}), \texttt{Text}, \texttt{Child} (\textit{slice of pointer}), dan \texttt{Parent}. Node teks dimodelkan sebagai node dengan \texttt{Tag} kosong dan \texttt{Text} berisi konten.
+    \item \texttt{Tree} menyimpan sebuah sentinel \texttt{Root} (tag ``root'') yang membungkus seluruh pohon yang memudahkan \textit{iterasi awal} sekaligus melokalisasi kasus dokumen yang tidak memiliki \texttt{<html>} eksplisit.
+    \item Setelah pohon terbentuk, dibangun \texttt{DOMIndex} yang menomori setiap node secara \textit{BFS order} (root $=$ 0). Index ini menyimpan \texttt{Parent[id]}, \texttt{Depth[id]}, \texttt{Children[id]}, dan \texttt{MaxDepth} yang dimanfaatkan oleh traversal, LCA, dan serialisasi ke JSON.
+\end{itemize}
+
+Representasi ini sengaja dipisah menjadi dua: struktur berbasis \textit{pointer} (\texttt{Node}/\texttt{Tree}) memberikan cara alami untuk menulis parser berbasis \textit{stack}, sedangkan struktur berbasis \textit{array of int} (\texttt{DOMIndex}) memberikan lokalitas memori yang baik saat melakukan lompatan sering seperti \textit{binary lifting}.
+
+\section{Pemetaan Persoalan ke Elemen Algoritma Traversal}
+
+\begin{table}[H]
+\centering
+\caption{Pemetaan elemen algoritma traversal graf ke persoalan penelusuran CSS}
+\begin{tabularx}{\textwidth}{|l|X|}
+\hline
+\textbf{Elemen Traversal} & \textbf{Pemetaan ke Persoalan Penelusuran CSS} \\
+\hline
+Graf $G = (V, E)$ & Pohon DOM hasil \textit{parsing} HTML. $V$ = seluruh \textit{node} HTML, $E$ = pasangan \textit{parent-child}. \\
+\hline
+Simpul awal (\textit{source}) & Seluruh anak dari \texttt{root} sentinel. Pada praktiknya ini berisi satu elemen yaitu \texttt{<html>} (atau \texttt{<!DOCTYPE>} diikuti \texttt{<html>}). \\
+\hline
+Struktur data frontier & \textit{Queue} untuk BFS, \textit{stack} untuk DFS. Pada implementasi \textit{slice} Go, BFS mengambil dari indeks 0 dan DFS mengambil dari indeks terakhir. \\
+\hline
+Fungsi ekspansi & Menambahkan seluruh \texttt{Children[id]} ke \textit{frontier}. Untuk DFS, anak-anak di-\textit{push} dari kanan ke kiri agar \textit{pop} berurutan mengikuti dokumen. \\
+\hline
+Fungsi \textit{goal test} & \texttt{MatchSelector(node, sel)} melakukan pengecekan apakah node cocok dengan CSS selector yang diberikan. Ini dipisah dari ekspansi sehingga seluruh node tetap di-\textit{visit} meski sudah menemukan match. \\
+\hline
+Terminasi & Dua mode: (1) ``Semua kemunculan'' menelusuri seluruh pohon, (2) ``Top $n$'' berhenti lebih awal begitu $n$ match pertama tercatat. \\
+\hline
+\textit{Output} & Daftar node match, urutan kunjungan (\textit{traversal log}), total node dikunjungi, kedalaman maksimum, dan waktu eksekusi. \\
+\hline
+\end{tabularx}
+\end{table}
+
+\section{Pencocokan CSS Selector terhadap Pohon DOM}
+
+Pada proses traversal, pada setiap node yang di-\textit{visit} perlu dilakukan pengecekan apakah node tersebut cocok dengan selector. Selector dapat berupa \textit{rantai} compound selector yang dihubungkan kombinator sehingga pengecekan bukan sekadar properti lokal node, melainkan juga melibatkan \textit{parent}, \textit{ancestor}, atau \textit{sibling}.
+
+\subsection{Parsing Selector}
+Pada tahap awal, string selector diuraikan menjadi struktur internal:
+\begin{itemize}
+    \item \textbf{Pemecahan koma tingkat-atas} (\texttt{splitTopLevelCommas}) memisahkan \textit{selector list} (\texttt{h1, h2, .foo}) menjadi beberapa grup. Koma di dalam \texttt{[\dots]} tidak ikut dipotong.
+    \item \textbf{Tokenisasi per grup} memisahkan \textit{compound} dari \textit{whitespace} dan kombinator eksplisit (\texttt{>}, \texttt{+}, \texttt{\textasciitilde}). Spasi setelah sebuah compound dipromosikan menjadi \textit{descendant combinator}. Jika setelahnya ada \texttt{>} / \texttt{+} / \texttt{\textasciitilde}, kombinator tersebut meng-\textit{override} \textit{pending descendant}.
+    \item \textbf{Pemecahan compound} membaca token awal tag atau \texttt{*}, lalu secara iteratif mengonsumsi \texttt{.class}, \texttt{\#id}, dan \texttt{[attr]} / \texttt{[attr=value]}.
+\end{itemize}
+
+Hasil akhirnya adalah \texttt{Selector} berisi banyak \texttt{Groups}. Tiap grup adalah \textit{slice} \texttt{SelectorPart} yang merupakan pasangan (\textit{combinator}, \textit{compound}). Dengan bentuk ini, pencocokan menjadi langsung mengikuti definisi CSS.
+
+\subsection{Algoritma Pencocokan (Right-to-Left)}
+Selector dicocokkan dari kanan ke kiri, strategi \textit{browser} standar yang memiliki \textit{early exit} paling cepat karena \textit{compound} paling kanan ($\textit{rightmost compound}$) bersifat paling selektif.
+
+\begin{algorithm}[H]
+\caption{matchSelectorGroup(n, parts)}
+\begin{algorithmic}[1]
+\Require Node $n$ dan rantai \textit{selector parts} $\mathit{parts}$
+\Ensure \texttt{true} bila $n$ match, \texttt{false} bila tidak
+\If{\textbf{not} MatchCompound($n$, last(parts))}
+    \State \Return \textbf{false}
+\EndIf
+\State $current \gets n$
+\For{$i \gets |\mathit{parts}| - 2$ \textbf{downto} $0$}
+    \State $linkComb \gets \mathit{parts}[i+1].Combinator$
+    \State $(ok, next) \gets$ matchAncestor($current$, $\mathit{parts}[i].Compound$, $linkComb$)
+    \If{\textbf{not} $ok$} \State \Return \textbf{false} \EndIf
+    \State $current \gets next$
+\EndFor
+\State \Return \textbf{true}
+\end{algorithmic}
+\end{algorithm}
+
+Fungsi \texttt{matchAncestor} melakukan traversal ke arah yang sesuai dengan kombinator yang menghubungkan $\mathit{parts}[i]$ dan $\mathit{parts}[i+1]$:
+
+\begin{itemize}
+    \item \textbf{Child (\texttt{>})}: pindah ke \texttt{Parent}.
+    \item \textbf{Descendant (spasi)}: panjat rantai \texttt{Parent} hingga ditemukan \textit{match}.
+    \item \textbf{Adjacent sibling (\texttt{+})}: pindah ke saudara elemen \textit{tepat} sebelumnya.
+    \item \textbf{General sibling (\texttt{\textasciitilde})}: panjat rantai saudara elemen sebelumnya hingga ditemukan \textit{match}.
+\end{itemize}
+
+Perhatikan bahwa node bertipe teks (\texttt{Tag == ""}) sengaja tidak pernah \textit{match}. Hal ini sesuai spesifikasi CSS yang hanya mentarget \textit{element node}.
+
+\section{Strategi Traversal BFS/DFS dengan Satu \textit{Frontier}}
+
+Baik BFS maupun DFS di implementasi kami menggunakan struktur data \textit{frontier} yang sama yakni sebuah \textit{slice}. Perbedaan hanya pada arah pengambilan elemen dan cara \textit{push} anak:
+
+\begin{itemize}
+    \item \textbf{BFS}: \textit{dequeue} dari depan (\texttt{frontier[0]}) lalu \textit{shift}. Anak-anak di-\textit{enqueue} dari kiri ke kanan. Perilaku = \textit{queue} FIFO.
+    \item \textbf{DFS}: \textit{pop} dari belakang (\texttt{frontier[len-1]}). Anak-anak di-\textit{push} dari \textbf{kanan ke kiri} sehingga saat di-\textit{pop} urutannya sama dengan urutan dokumen. Perilaku = \textit{stack} LIFO dengan hasil \textit{pre-order}.
+\end{itemize}
+
+\textit{Unifikasi} ini memiliki beberapa keuntungan:
+\begin{enumerate}
+    \item Hanya ada satu \textit{code path} untuk dipelihara, sehingga logika \textit{logging}, \textit{stop condition}, dan perhitungan metrik cukup ditulis sekali.
+    \item Representasi \textit{step log} (urutan kunjungan, \textit{frontier snapshot}) langsung identik untuk kedua algoritma yang memudahkan \textit{frontend} saat merender animasi.
+    \item Memudahkan penjaminan kebenaran: cukup membuktikan bahwa perilaku \textit{frontier} sesuai definisi BFS/DFS.
+\end{enumerate}
+
+\section{Analisis Efisiensi dan Perbandingan BFS vs DFS}
+
+Dengan $N$ = jumlah node pohon, $H$ = tinggi pohon, $W$ = lebar maksimum, dan $s$ = panjang rantai selector:
+
+\begin{table}[H]
+\centering
+\caption{Analisis kompleksitas BFS vs DFS pada aplikasi ini}
+\begin{tabularx}{\textwidth}{|l|X|X|}
+\hline
+\textbf{Aspek} & \textbf{BFS} & \textbf{DFS} \\
+\hline
+Kompleksitas traversal murni & $O(N)$ & $O(N)$ \\
+\hline
+Kompleksitas dengan pencocokan selector & $O(N \cdot s \cdot H)$ (worst case pada kombinator \textit{descendant}) & $O(N \cdot s \cdot H)$ \\
+\hline
+Memori frontier & $O(W)$ & $O(H)$ \\
+\hline
+Urutan hasil ``top-$n$'' & \textit{Match} dengan \textit{depth} kecil didahulukan & \textit{Match} berdasarkan urutan dokumen (\textit{pre-order}) \\
+\hline
+\textit{Early termination} & Memberikan manfaat besar bila target ada di level dangkal (mis. \texttt{\#header}, navigasi) & Memberikan manfaat besar bila target ada di sub-pohon paling kiri (mis. elemen \texttt{<article>} pertama) \\
+\hline
+\textit{Use case} representatif & \textit{Landmark navigation}, metadata, \texttt{<head>} & Pengambilan konten berurutan sesuai pembacaan dokumen \\
+\hline
+\end{tabularx}
+\end{table}
+
+Karena kedua algoritma memiliki karakteristik yang saling melengkapi, aplikasi ini menyediakan keduanya sebagai pilihan pengguna dan mem-\textit{highlight} urutan traversal sehingga pengguna dapat \textbf{melihat langsung} perbedaan perilaku pada pohon yang sama.
