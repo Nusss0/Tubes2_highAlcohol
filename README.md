@@ -132,3 +132,34 @@ docker compose ps
 curl -i http://localhost/api/traverse
 curl -i http://localhost:8080/health
 ```
+
+## Link to Azure Deployment
+[Akses aplikasi di Azure](http://4.194.26.56)
+
+> **Disclaimer:** Deployment mungkin sedang tidak aktif untuk menghindari biaya. Silakan hubungi salah satu anggota tim untuk mengaktifkannya kembali.
+
+## Tabel Evaluasi Pengerjaan
+
+| No. | Poin | Ya | Tidak |
+|-----|------|----|-------|
+| 1 | Aplikasi berhasil di kompilasi tanpa kesalahan | ✅ | |
+| 2 | Aplikasi berhasil dijalankan | ✅ | |
+| 3 | Aplikasi dapat menerima input URL web, pilihan algoritma, CSS selector, dan jumlah hasil | ✅ | |
+| 4 | Aplikasi dapat melakukan scraping terhadap web pada input | ✅ | |
+| 5 | Aplikasi dapat menampilkan visualisasi pohon DOM | ✅ | |
+| 6 | Aplikasi dapat menelusuri pohon DOM dan menampilkan hasil penelusuran | ✅ | |
+| 7 | Aplikasi dapat menandai jalur tempuh oleh algoritma | ✅ | |
+| 8 | Aplikasi dapat menyimpan jalur yang ditempuh algoritma dalam traversal log | ✅ | |
+| 9 | [Bonus] Membuat video | | ❌ |
+| 10 | [Bonus] Deploy aplikasi | ✅ | |
+| 11 | [Bonus] Implementasi animasi pada penelusuran pohon | ✅ | |
+| 12 | [Bonus] Implementasi multithreading | | ❌ |
+| 13 | [Bonus] Implementasi LCA Binary Lifting | ✅ | |
+
+## Tabel Anggota
+
+| No. | Nama | NIM |
+|-----|------|----|
+| 1 | Stevanus Agutaf Wongso | 13524020 |
+| 2 | Jonathan Kris Wicaksono | 13524023 |
+| 3 | Philipp Hamara | 13524101 |
